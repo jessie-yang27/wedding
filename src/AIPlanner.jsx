@@ -51,17 +51,22 @@ Be warm, concise, and decisive. Speak like a trusted advisor who knows wedding p
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           max_tokens: 1000,
           system: buildContext(),
           messages: newHistory.map(m => ({ role: m.role, content: m.content })),
         }),
       })
       const data = await response.json()
+      if (!response.ok) {
+        const errMsg = data.error?.message || JSON.stringify(data)
+        setMessages(prev => [...prev, { role: 'assistant', content: `Error ${response.status}: ${errMsg}` }])
+        return
+      }
       const reply = data.content?.[0]?.text || "I couldn't generate a response right now."
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Something went wrong. Please try again.' }])
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'assistant', content: `Something went wrong: ${err.message}` }])
     } finally {
       setIsTyping(false)
     }
