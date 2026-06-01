@@ -1,0 +1,35 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Jost', sans-serif;
+  background: #F9F6F0;
+  color: #2C2416;
+  min-height: 100vh;
+}
+:root {
+  --cream: #F9F6F0;
+  --ivory: #F2EDE4;
+  --champagne: #E8DCC8;
+  --gold: #B89A6A;
+  --gold-dark: #8C6E3F;
+  --sage: #7A8C6E;
+  --sage-light: #D4DCCC;
+  --sage-dark: #4A5C3E;
+  --text: #2C2416;
+  --text-muted: #7A6E5C;
+  --text-light: #A89880;
+  --danger: #C4614A;
+  --success: #4A8C6E;
+  --warning: #B8923A;
+  --border: rgba(184,154,106,0.25);
+  --border-strong: rgba(184,154,106,0.5);
+}
+.serif { font-family: 'Cormorant Garamond', serif; }
+input, textarea, select, button { font-family: 'Jost', sans-serif; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--champagne); border-radius: 2px; }
+
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
