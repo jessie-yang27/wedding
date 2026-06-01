@@ -19,26 +19,25 @@ export default function Dashboard({ vendors, budget, tasks, onReset }) {
   return (
     <div style={{ minHeight: '100vh', background: '#F9F6F0' }}>
       {/* Header */}
-      <div style={{ background: 'white', borderBottom: '1px solid #E8DCC8', padding: '0 32px' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+      <div className="header-bar">
+        <div className="header-inner">
+          <div className="header-brand">
             <h1 className="serif" style={{ fontSize: 24, fontWeight: 400, color: '#2C2416' }}>Jessie & Patrick</h1>
             <span style={{ fontSize: 12, color: '#B89A6A', letterSpacing: '0.12em' }}>JUNE 20, 2026</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <div className="header-right">
             <div style={{ textAlign: 'right' }}>
               <div className="serif" style={{ fontSize: 28, fontWeight: 300, color: '#2C2416', lineHeight: 1 }}>{days}</div>
               <div style={{ fontSize: 11, color: '#A89880', letterSpacing: '0.1em' }}>DAYS TO GO</div>
             </div>
-            <button onClick={onReset} style={{ fontSize: 12, color: '#A89880', background: 'none', border: '1px solid #E0D4C0', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>
+            <button onClick={onReset} style={{ fontSize: 12, color: '#A89880', background: 'none', border: '1px solid #E0D4C0', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               ← New Upload
             </button>
           </div>
         </div>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex' }}>
+        <div className="nav-tabs-inner">
           {TABS.map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} style={{
-              padding: '12px 20px', fontSize: 13, fontWeight: 500, letterSpacing: '0.05em',
+            <button key={tab} onClick={() => setActiveTab(tab)} className="nav-tab" style={{
               background: 'none', border: 'none', cursor: 'pointer',
               color: activeTab === tab ? '#2C2416' : '#A89880',
               borderBottom: activeTab === tab ? '2px solid #B89A6A' : '2px solid transparent',
@@ -50,12 +49,12 @@ export default function Dashboard({ vendors, budget, tasks, onReset }) {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px' }}>
+      <div className="page-container">
 
         {/* DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', gap: 20, marginBottom: 20 }}>
+            <div className="dashboard-top-grid">
               {/* Readiness */}
               <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#B89A6A', marginBottom: 16, fontWeight: 500 }}>READINESS</div>
@@ -94,7 +93,7 @@ export default function Dashboard({ vendors, budget, tasks, onReset }) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="dashboard-bottom-grid">
               {/* Tasks */}
               <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', padding: '24px' }}>
                 <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#B89A6A', marginBottom: 16, fontWeight: 500 }}>UPCOMING TASKS</div>
@@ -127,10 +126,11 @@ export default function Dashboard({ vendors, budget, tasks, onReset }) {
 
         {/* VENDORS */}
         {activeTab === 'vendors' && (
-          <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', overflow: 'hidden' }}>
+          <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8' }}>
             <div style={{ padding: '24px 28px', borderBottom: '1px solid #F0EDE8' }}>
               <div className="serif" style={{ fontSize: 22, fontWeight: 400 }}>Vendor Tracker</div>
             </div>
+            <div className="vendor-table-wrapper">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: '#FDFCF9' }}>
@@ -153,13 +153,14 @@ export default function Dashboard({ vendors, budget, tasks, onReset }) {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 
         {/* BUDGET */}
         {activeTab === 'budget' && (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }}>
+            <div className="budget-summary-grid">
               {[
                 { label: 'Total Budget', value: `$${totalBudget.toLocaleString()}` },
                 { label: 'Total Spent', value: `$${totalSpent.toLocaleString()}`, sub: `${Math.round(totalSpent / totalBudget * 100)}% of budget` },

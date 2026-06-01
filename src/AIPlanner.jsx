@@ -73,12 +73,12 @@ Be warm, concise, and decisive. Speak like a trusted advisor who knows wedding p
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>
+    <div className="ai-planner-layout">
       {/* Sidebar */}
       <div>
         <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', padding: '24px', marginBottom: 16 }}>
           <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#B89A6A', marginBottom: 14, fontWeight: 500 }}>QUICK ACTIONS</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="ai-quick-actions">
             {QUICK_ACTIONS.map((a, i) => (
               <button key={i} onClick={() => sendMessage(a.label)}
                 style={{
@@ -106,7 +106,7 @@ Be warm, concise, and decisive. Speak like a trusted advisor who knows wedding p
       </div>
 
       {/* Chat window */}
-      <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', display: 'flex', flexDirection: 'column', height: 560 }}>
+      <div className="chat-window" style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #F0EDE8' }}>
           <div className="serif" style={{ fontSize: 20, fontWeight: 400, color: '#2C2416' }}>Wedding Chief of Staff</div>
           <div style={{ fontSize: 12, color: '#A89880' }}>Powered by Claude · Knows your full plan</div>

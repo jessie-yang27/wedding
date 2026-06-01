@@ -57,7 +57,7 @@ export default function App() {
   return (
     <>
       {usedSample && screen === 'dashboard' && (
-        <div style={{ background: '#FEF3E2', padding: '10px 32px', fontSize: 13, color: '#8C5A0A', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="sample-banner" style={{ background: '#FEF3E2', color: '#8C5A0A' }}>
           <span>ⓘ</span> Using sample data — upload your own CSVs to personalize your dashboard.
         </div>
       )}

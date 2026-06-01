@@ -40,7 +40,7 @@ export default function UploadScreen({ onGenerate }) {
       <div style={{ maxWidth: 560, width: '100%' }}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
           <div style={{ fontSize: 13, letterSpacing: '0.2em', color: '#B89A6A', marginBottom: 16, fontWeight: 400 }}>JUNE 20, 2026</div>
-          <h1 className="serif" style={{ fontSize: 52, fontWeight: 300, lineHeight: 1.1, color: '#2C2416', marginBottom: 12 }}>
+          <h1 className="serif upload-title" style={{ color: '#2C2416', marginBottom: 12 }}>
             Your AI Wedding<br /><em>Chief of Staff</em>
           </h1>
           <p style={{ fontSize: 15, color: '#7A6E5C', lineHeight: 1.7, maxWidth: 400, margin: '0 auto' }}>
@@ -50,7 +50,7 @@ export default function UploadScreen({ onGenerate }) {
 
         <div style={{ background: 'white', borderRadius: 16, border: '1px solid #E8DCC8', padding: '32px', marginBottom: 20, boxShadow: '0 2px 20px rgba(184,154,106,0.08)' }}>
           <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#B89A6A', marginBottom: 16, fontWeight: 500 }}>UPLOAD CSV FILES (OPTIONAL)</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 24 }}>
+          <div className="upload-grid">
             <DropZone label="vendors.csv" fileKey="vendors" icon="📋" />
             <DropZone label="budget.csv" fileKey="budget" icon="💰" />
             <DropZone label="timeline.csv" fileKey="timeline" icon="📅" />
