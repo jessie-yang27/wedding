@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     returnUrl = decoded.returnUrl || '/'
   } catch {}
 
-  const baseUrl = process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'http://localhost:5173'
+  const baseUrl = process.env.REDIRECT_BASE_URL || 'http://localhost:5173'
 
   try {
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {

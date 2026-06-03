@@ -5,7 +5,7 @@ export default function handler(req, res) {
 
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID,
-    redirect_uri: `${process.env.VERCEL_URL ? 'https://' + process.env.VERCEL_URL : 'http://localhost:5173'}/api/google-callback`,
+    redirect_uri: `${process.env.REDIRECT_BASE_URL || 'http://localhost:5173'}/api/google-callback`,
     response_type: 'code',
     scope: [
       'https://www.googleapis.com/auth/gmail.readonly',
