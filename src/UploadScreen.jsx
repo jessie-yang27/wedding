@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function UploadScreen({ onGenerate }) {
+export default function UploadScreen({ onGenerate, onConnectGoogle }) {
   const [pastedNotes, setPastedNotes] = useState('')
   const [files, setFiles] = useState({})
   const [dragging, setDragging] = useState(null)
@@ -14,7 +14,7 @@ export default function UploadScreen({ onGenerate }) {
   }
 
   const handleConnectGoogle = () => {
-    window.location.href = `/api/google-auth?return=${encodeURIComponent(window.location.href + '?google=connected')}`
+    window.location.href = `/api/google-auth?return=${encodeURIComponent(window.location.origin + '?google=connected')}`
   }
 
   const canGenerate = activeMethod === 'google'

@@ -54,18 +54,19 @@ export default async function handler(req, res) {
 }
 
 async function fetchGmailVendorThreads(headers) {
-  // Search for wedding-related emails
-  const query = encodeURIComponent('subject:(venue OR catering OR florist OR photographer OR wedding OR DJ OR band OR officiant OR rehearsal)')
+  // Cast a wide net — wedding vendors, quotes, contracts, invoices
+  const query = encodeURIComponent(
+    'subject:(venue OR catering OR florist OR photographer OR wedding OR DJ OR band OR officiant OR rehearsal OR contract OR invoice OR quote OR proposal OR deposit OR caterer OR videographer OR hair OR makeup OR transportation OR hotel OR accommodation)'
+  )
   const listRes = await fetch(
-    `https://gmail.googleapis.com/gmail/v1/users/me/threads?q=${query}&maxResults=20`,
+    `https://gmail.googleapis.com/gmail/v1/users/me/threads?q=${query}&maxResults=30`,
     { headers }
   )
   const list = await listRes.json()
   if (!list.threads) return []
 
-  // Fetch snippet + subject for each thread
   const threads = await Promise.all(
-    list.threads.slice(0, 10).map(async t => {
+    list.threads.slice(0, 20).map(async t => {
       const threadRes = await fetch(
         `https://gmail.googleapis.com/gmail/v1/users/me/threads/${t.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`,
         { headers }
@@ -75,31 +76,47 @@ async function fetchGmailVendorThreads(headers) {
       const subject = msg?.payload?.headers?.find(h => h.name === 'Subject')?.value || '(no subject)'
       const from = msg?.payload?.headers?.find(h => h.name === 'From')?.value || ''
       const date = msg?.payload?.headers?.find(h => h.name === 'Date')?.value || ''
-      return { id: t.id, subject, from, date, snippet: msg?.snippet || '' }
+      // Guess vendor name from sender display name
+      const senderName = from.replace(/<.*>/, '').replace(/"/g, '').trim()
+      return { id: t.id, subject, from, senderName, date, snippet: msg?.snippet || '', messageCount: thread.messages?.length || 1 }
     })
   )
   return threads
 }
 
 async function fetchWeddingSheets(headers) {
-  // Find spreadsheets with wedding-related names
-  const query = encodeURIComponent("mimeType='application/vnd.google-apps.spreadsheet' and (name contains 'wedding' or name contains 'vendor' or name contains 'budget' or name contains 'Wedding')")
+  // Broad search — any spreadsheet (user will pick the right one in the UI)
+  const query = encodeURIComponent("mimeType='application/vnd.google-apps.spreadsheet'")
   const driveRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${query}&pageSize=5&fields=files(id,name,modifiedTime)`,
+    `https://www.googleapis.com/drive/v3/files?q=${query}&pageSize=20&orderBy=modifiedTime desc&fields=files(id,name,modifiedTime)`,
     { headers }
   )
   const drive = await driveRes.json()
   if (!drive.files?.length) return []
 
-  // Pull first sheet of each file
+  // Pull all tab names first, then fetch each tab's data
   const sheets = await Promise.all(
     drive.files.map(async file => {
-      const sheetRes = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${file.id}/values/Sheet1!A1:Z100`,
+      // Get sheet metadata to find all tab names
+      const metaRes = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${file.id}?fields=sheets.properties`,
         { headers }
       )
-      const data = await sheetRes.json()
-      return { id: file.id, name: file.name, modified: file.modifiedTime, rows: data.values || [] }
+      const meta = await metaRes.json()
+      const tabs = meta.sheets?.map(s => s.properties?.title).filter(Boolean) || ['Sheet1']
+
+      // Fetch all tabs
+      const tabData = await Promise.all(
+        tabs.map(async tab => {
+          const sheetRes = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${file.id}/values/${encodeURIComponent(tab)}!A1:Z200`,
+            { headers }
+          )
+          const data = await sheetRes.json()
+          return { tab, rows: data.values || [] }
+        })
+      )
+      return { id: file.id, name: file.name, modified: file.modifiedTime, tabs: tabData }
     })
   )
   return sheets
