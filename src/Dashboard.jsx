@@ -59,6 +59,18 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
   const [newVendor, setNewVendor] = useState(EMPTY_VENDOR)
   const [addingBudget, setAddingBudget] = useState(false)
   const [newBudget, setNewBudget] = useState(EMPTY_BUDGET)
+  const [taskList, setTaskList] = useState(tasks)
+  const [addingTask, setAddingTask] = useState(false)
+  const [newTask, setNewTask] = useState({ date: '', task: '', priority: 'High' })
+
+  const updateTask = (i, field, val) => setTaskList(ts => ts.map((t, idx) => idx === i ? { ...t, [field]: val } : t))
+  const deleteTask = (i) => setTaskList(ts => ts.filter((_, idx) => idx !== i))
+  const saveNewTask = () => {
+    if (!newTask.task.trim()) return
+    setTaskList(ts => [...ts, { ...newTask }])
+    setNewTask({ date: '', task: '', priority: 'High' })
+    setAddingTask(false)
+  }
 
   const days = daysUntil(clientDetails?.weddingDate ? new Date(clientDetails.weddingDate) : WEDDING_DATE)
   const totalBudget = budget.reduce((s, r) => s + (parseFloat(r.budget) || 0), 0)
@@ -66,7 +78,7 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
   const remaining = totalBudget - totalSpent
   const risks = vendors.filter(v => ['Payment Due', 'Not Started', 'Incomplete', 'Pending Approval'].includes(v.status))
   const readiness = Math.round(100 - (risks.length / Math.max(vendors.length, 1)) * 60 - (days < 20 ? 5 : 0))
-  const upcomingTasks = [...tasks].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 5)
+  const upcomingTasks = [...taskList].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 5)
 
   const displayName = clientDetails?.partnerName
     ? `${clientName?.split(' ')[0] || 'Your'} & ${clientDetails.partnerName}`
@@ -142,10 +154,13 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
         {activeTab === 'dashboard' && (
           <div>
             <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', gap: 20, marginBottom: 20 }}>
+              {/* Readiness */}
               <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#B89A6A', marginBottom: 16, fontWeight: 500 }}>READINESS</div>
                 <ReadinessGauge score={readiness} />
               </div>
+
+              {/* Budget — click spent/budget to edit */}
               <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', padding: '24px' }}>
                 <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#B89A6A', marginBottom: 16, fontWeight: 500 }}>BUDGET</div>
                 <div className="serif" style={{ fontSize: 36, fontWeight: 300, color: '#2C2416', marginBottom: 4 }}>${totalSpent.toLocaleString()}</div>
@@ -157,38 +172,89 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
                   <span style={{ fontSize: 12, color: '#7A6E5C' }}>{Math.round(totalSpent / Math.max(totalBudget, 1) * 100)}% used</span>
                   <span style={{ fontSize: 12, color: '#4A8C6E', fontWeight: 500 }}>${remaining.toLocaleString()} remaining</span>
                 </div>
+                <button onClick={() => setActiveTab('budget')} style={{ marginTop: 14, fontSize: 11, color: '#B89A6A', background: 'none', border: '1px solid #E8DCC8', borderRadius: 6, padding: '5px 12px', cursor: 'pointer' }}>
+                  Edit budget →
+                </button>
               </div>
+
+              {/* Open Risks — click status to update inline */}
               <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', padding: '24px' }}>
                 <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#C4614A', marginBottom: 16, fontWeight: 500 }}>OPEN RISKS</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {risks.slice(0, 5).map((r, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: r.status === 'Not Started' ? '#C4614A' : '#B8923A', flexShrink: 0 }} />
-                      <span style={{ fontSize: 13, color: '#2C2416' }}>{r.vendor}</span>
-                      <span style={{ fontSize: 11, color: '#A89880', marginLeft: 'auto' }}>{r.status}</span>
-                    </div>
-                  ))}
+                  {risks.slice(0, 5).map((r, i) => {
+                    const vi = vendors.indexOf(r)
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: r.status === 'Not Started' ? '#C4614A' : '#B8923A', flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, color: '#2C2416', flex: 1 }}>{r.vendor}</span>
+                        <select
+                          value={r.status}
+                          onChange={e => updateVendor(vi, 'status', e.target.value)}
+                          style={{ fontSize: 11, border: '1px solid #E0D4C0', borderRadius: 6, padding: '2px 6px', color: '#8C5A0A', background: '#FEF3E2', cursor: 'pointer', fontFamily: 'Jost, sans-serif' }}
+                        >
+                          {STATUSES.map(s => <option key={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )
+                  })}
                   {risks.length === 0 && <p style={{ fontSize: 13, color: '#7A8C6E' }}>All clear — no open risks.</p>}
                 </div>
               </div>
             </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              {/* Tasks — inline edit + add + delete */}
               <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', padding: '24px' }}>
-                <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#B89A6A', marginBottom: 16, fontWeight: 500 }}>UPCOMING TASKS</div>
-                {upcomingTasks.map((t, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '10px 0', borderBottom: i < upcomingTasks.length - 1 ? '1px solid #F0EDE8' : 'none' }}>
-                    <div style={{ width: 48, fontSize: 11, color: '#A89880', fontWeight: 500 }}>{formatDate(t.date)}</div>
-                    <div style={{ flex: 1, fontSize: 13, color: '#2C2416' }}>{t.task}</div>
-                    <span style={{ fontSize: 11, color: t.priority === 'High' ? '#C4614A' : '#B8923A', fontWeight: 500 }}>{t.priority}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#B89A6A', fontWeight: 500 }}>UPCOMING TASKS</div>
+                  <button onClick={() => setAddingTask(true)} style={{ fontSize: 11, color: '#B89A6A', background: 'none', border: '1px solid #E8DCC8', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>+ Add</button>
+                </div>
+                {upcomingTasks.map((t, i) => {
+                  const ti = tasks.indexOf(t)
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: i < upcomingTasks.length - 1 ? '1px solid #F0EDE8' : 'none' }}
+                      onMouseOver={e => e.currentTarget.querySelector('.del-task').style.opacity = '1'}
+                      onMouseOut={e => e.currentTarget.querySelector('.del-task').style.opacity = '0'}>
+                      <input type="date" value={t.date} onChange={e => updateTask(ti, 'date', e.target.value)}
+                        style={{ border: 'none', background: 'transparent', fontSize: 11, color: '#A89880', fontFamily: 'Jost, sans-serif', width: 90, cursor: 'pointer' }} />
+                      <InlineEdit value={t.task} onChange={val => updateTask(ti, 'task', val)} style={{ flex: 1, fontSize: 13 }} />
+                      <select value={t.priority} onChange={e => updateTask(ti, 'priority', e.target.value)}
+                        style={{ fontSize: 11, border: 'none', background: 'transparent', color: t.priority === 'High' ? '#C4614A' : '#B8923A', fontWeight: 500, cursor: 'pointer', fontFamily: 'Jost, sans-serif' }}>
+                        <option>High</option><option>Medium</option><option>Low</option>
+                      </select>
+                      <button className="del-task" onClick={() => deleteTask(ti)} style={{ ...deleteBtn, opacity: 0, transition: 'opacity 0.15s' }}>✕</button>
+                    </div>
+                  )
+                })}
+                {addingTask && (
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', paddingTop: 10, borderTop: '1px solid #F0EDE8', flexWrap: 'wrap' }}>
+                    <input type="date" value={newTask.date} onChange={e => setNewTask(t => ({ ...t, date: e.target.value }))}
+                      style={{ ...addRowInputStyle, width: 130 }} autoFocus />
+                    <input placeholder="Task name" value={newTask.task} onChange={e => setNewTask(t => ({ ...t, task: e.target.value }))}
+                      style={{ ...addRowInputStyle, flex: 1, minWidth: 120 }} />
+                    <select value={newTask.priority} onChange={e => setNewTask(t => ({ ...t, priority: e.target.value }))}
+                      style={{ ...addRowInputStyle, width: 90 }}>
+                      <option>High</option><option>Medium</option><option>Low</option>
+                    </select>
+                    <button onClick={saveNewTask} style={saveBtn}>Save</button>
+                    <button onClick={() => setAddingTask(false)} style={cancelBtn}>✕</button>
                   </div>
-                ))}
+                )}
               </div>
+
+              {/* Vendors snapshot — status dropdown + name inline edit */}
               <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', padding: '24px' }}>
-                <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#B89A6A', marginBottom: 16, fontWeight: 500 }}>VENDORS</div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#B89A6A', fontWeight: 500 }}>VENDORS</div>
+                  <button onClick={() => setActiveTab('vendors')} style={{ fontSize: 11, color: '#B89A6A', background: 'none', border: '1px solid #E8DCC8', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>See all →</button>
+                </div>
                 {vendors.slice(0, 6).map((v, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '9px 0', borderBottom: i < Math.min(vendors.length, 6) - 1 ? '1px solid #F0EDE8' : 'none' }}>
-                    <div style={{ flex: 1, fontSize: 13, color: '#2C2416' }}>{v.vendor}</div>
-                    <StatusBadge status={v.status} />
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: i < Math.min(vendors.length, 6) - 1 ? '1px solid #F0EDE8' : 'none' }}>
+                    <InlineEdit value={v.vendor} onChange={val => updateVendor(i, 'vendor', val)} style={{ flex: 1, fontSize: 13, color: '#2C2416', fontWeight: 500 }} />
+                    <select value={v.status} onChange={e => updateVendor(i, 'status', e.target.value)}
+                      style={{ fontSize: 11, border: '1px solid #E0D4C0', borderRadius: 12, padding: '3px 8px', cursor: 'pointer', fontFamily: 'Jost, sans-serif', background: '#F9F6F0' }}>
+                      {STATUSES.map(s => <option key={s}>{s}</option>)}
+                    </select>
                   </div>
                 ))}
               </div>
@@ -356,7 +422,7 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
 
         {/* AI PLANNER */}
         {activeTab === 'ai-planner' && (
-          <AIPlanner vendors={vendors} budget={budget} tasks={tasks} readiness={readiness} />
+          <AIPlanner vendors={vendors} budget={budget} tasks={taskList} readiness={readiness} />
         )}
 
       </div>
