@@ -52,7 +52,7 @@ function InlineEdit({ value, onChange, type = 'text', options, style = {} }) {
   )
 }
 
-export default function Dashboard({ vendors: initialVendors, budget: initialBudget, tasks, dayTimeline, clientName, clientDetails, googleConnected, onReset }) {
+export default function Dashboard({ vendors: initialVendors, budget: initialBudget, tasks, dayTimeline, clientName, clientDetails, googleConnected, onReset, canRestore, onRestore }) {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [vendors, setVendors] = useState(initialVendors)
   const [budget, setBudget] = useState(initialBudget)
@@ -149,6 +149,11 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
               <div className="serif" style={{ fontSize: 28, fontWeight: 300, color: '#2C2416', lineHeight: 1 }}>{days}</div>
               <div style={{ fontSize: 11, color: '#A89880', letterSpacing: '0.1em' }}>DAYS TO GO</div>
             </div>
+            {canRestore && (
+              <button onClick={onRestore} style={{ fontSize: 12, color: '#4A8C6E', background: 'none', border: '1px solid #CFE3D6', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>
+                Restore
+              </button>
+            )}
             <button onClick={() => { if (window.confirm('Clear all data and start over? This removes vendors, budget, tasks, and the day-of timeline.')) onReset() }} style={{ fontSize: 12, color: '#C4614A', background: 'none', border: '1px solid #E8C8BE', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>
               Clear Everything
             </button>

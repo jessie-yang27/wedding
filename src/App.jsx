@@ -87,6 +87,7 @@ export default function App() {
   const [budget, setBudget] = useState(SAMPLE_BUDGET)
   const [tasks, setTasks] = useState(SAMPLE_TASKS)
   const [dayTimeline, setDayTimeline] = useState(SAMPLE_DAY_TIMELINE)
+  const [clearedSnapshot, setClearedSnapshot] = useState(null)
   const [usedSample, setUsedSample] = useState(false)
   const [googleConnected, setGoogleConnected] = useState(false)
   const [clientDetails, setClientDetails] = useState(null)
@@ -233,6 +234,7 @@ export default function App() {
           googleConnected={googleConnected}
           onReset={() => {
             if (storageKey) localStorage.removeItem(storageKey)
+            setClearedSnapshot({ vendors, budget, tasks, dayTimeline })
             setVendors([])
             setBudget([])
             setTasks([])
@@ -240,6 +242,15 @@ export default function App() {
             setUsedSample(false)
             setGoogleData(null)
             setScreen('upload')
+          }}
+          canRestore={!!clearedSnapshot}
+          onRestore={() => {
+            if (!clearedSnapshot) return
+            setVendors(clearedSnapshot.vendors)
+            setBudget(clearedSnapshot.budget)
+            setTasks(clearedSnapshot.tasks)
+            setDayTimeline(clearedSnapshot.dayTimeline)
+            setClearedSnapshot(null)
           }}
         />
       )}
