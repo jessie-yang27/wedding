@@ -52,7 +52,7 @@ function InlineEdit({ value, onChange, type = 'text', options, style = {} }) {
   )
 }
 
-export default function Dashboard({ vendors: initialVendors, budget: initialBudget, tasks, dayTimeline, clientName, clientDetails, googleConnected, onReset, canRestore, onRestore }) {
+export default function Dashboard({ vendors: initialVendors, budget: initialBudget, tasks, dayTimeline, clientName, clientDetails, googleConnected, onReset, canRestore, onRestore, onImportClick }) {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [vendors, setVendors] = useState(initialVendors)
   const [budget, setBudget] = useState(initialBudget)
@@ -149,6 +149,9 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
               <div className="serif" style={{ fontSize: 28, fontWeight: 300, color: '#2C2416', lineHeight: 1 }}>{days}</div>
               <div style={{ fontSize: 11, color: '#A89880', letterSpacing: '0.1em' }}>DAYS TO GO</div>
             </div>
+            <button onClick={onImportClick} style={{ fontSize: 12, color: '#2C2416', background: 'none', border: '1px solid #E0D4C0', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontWeight: 500 }}>
+              + Import
+            </button>
             {canRestore && (
               <button onClick={onRestore} style={{ fontSize: 12, color: '#4A8C6E', background: 'none', border: '1px solid #CFE3D6', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>
                 Restore

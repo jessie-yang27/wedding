@@ -88,6 +88,7 @@ export default function App() {
   const [tasks, setTasks] = useState(SAMPLE_TASKS)
   const [dayTimeline, setDayTimeline] = useState(SAMPLE_DAY_TIMELINE)
   const [clearedSnapshot, setClearedSnapshot] = useState(null)
+  const [showImportOverlay, setShowImportOverlay] = useState(false)
   const [usedSample, setUsedSample] = useState(false)
   const [googleConnected, setGoogleConnected] = useState(false)
   const [clientDetails, setClientDetails] = useState(null)
@@ -110,7 +111,7 @@ export default function App() {
       if (!res.ok) return
       const data = await res.json()
       setGoogleData(data)
-      setScreen('import')
+      setShowImportOverlay(true)
     } catch (e) {
       console.error(e)
     } finally {
@@ -156,7 +157,7 @@ export default function App() {
       localStorage.setItem(storageKey, JSON.stringify({ ...existing, importedAt: Date.now() }))
     }
 
-    setScreen('dashboard')
+    setShowImportOverlay(false)
   }
 
   const handleOnboardComplete = async ({ googleConnected: gc, details }) => {
@@ -199,7 +200,7 @@ export default function App() {
     setBudget(parsedBudget)
     setTasks(parsedTasks)
     setUsedSample(!files.vendors && !files.budget && !files.timeline)
-    setScreen('dashboard')
+    setShowImportOverlay(false)
   }
 
   return (
@@ -213,16 +214,6 @@ export default function App() {
       {screen === 'onboard' && (
         <OnboardScreen clientName={clientName} onComplete={handleOnboardComplete} />
       )}
-      {screen === 'upload' && (
-        <UploadScreen onGenerate={handleGenerate} onConnectGoogle={fetchGoogleData} />
-      )}
-      {screen === 'import' && googleData && (
-        <ImportScreen
-          googleData={googleData}
-          onImport={handleImport}
-          onSkip={() => { setUsedSample(true); setScreen('dashboard') }}
-        />
-      )}
       {screen === 'dashboard' && (
         <Dashboard
           vendors={vendors}
@@ -232,6 +223,7 @@ export default function App() {
           clientName={clientName}
           clientDetails={clientDetails}
           googleConnected={googleConnected}
+          onImportClick={() => setShowImportOverlay(true)}
           onReset={() => {
             if (storageKey) localStorage.removeItem(storageKey)
             setClearedSnapshot({ vendors, budget, tasks, dayTimeline })
@@ -241,7 +233,7 @@ export default function App() {
             setDayTimeline([])
             setUsedSample(false)
             setGoogleData(null)
-            setScreen('upload')
+            setShowImportOverlay(true)
           }}
           canRestore={!!clearedSnapshot}
           onRestore={() => {
@@ -253,6 +245,38 @@ export default function App() {
             setClearedSnapshot(null)
           }}
         />
+      )}
+
+      {showImportOverlay && (
+        <div
+          onClick={e => { if (e.target === e.currentTarget) setShowImportOverlay(false) }}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(44, 36, 22, 0.55)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 24, zIndex: 1000, overflowY: 'auto',
+          }}
+        >
+          <div style={{ position: 'relative', maxWidth: 640, width: '100%', maxHeight: '90vh', overflowY: 'auto', background: '#FDFCF9', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <button
+              onClick={() => setShowImportOverlay(false)}
+              title="Close"
+              style={{
+                position: 'absolute', top: 16, right: 16, zIndex: 1,
+                background: 'white', border: '1px solid #E8DCC8', borderRadius: '50%',
+                width: 32, height: 32, fontSize: 14, color: '#7A6E5C', cursor: 'pointer',
+              }}
+            >✕</button>
+            {googleData ? (
+              <ImportScreen
+                googleData={googleData}
+                onImport={handleImport}
+                onSkip={() => { setUsedSample(true); setShowImportOverlay(false) }}
+              />
+            ) : (
+              <UploadScreen onGenerate={handleGenerate} onConnectGoogle={fetchGoogleData} />
+            )}
+          </div>
+        </div>
       )}
     </>
   )
