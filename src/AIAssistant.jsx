@@ -1,41 +1,29 @@
 import { useState, useRef, useEffect } from 'react'
-import { daysUntil, WEDDING_DATE } from './data'
+import { guestsToCsvText } from './data'
 
 const QUICK_ACTIONS = [
-  { label: 'What am I forgetting?', icon: '🔍' },
-  { label: 'What should I do this week?', icon: '📋' },
-  { label: 'Draft vendor email', icon: '✉️' },
-  { label: 'Build weekend itinerary', icon: '📅' },
+  { label: 'Who still needs to RSVP?', icon: '🔍' },
+  { label: 'List guests with dietary restrictions', icon: '🍽️' },
+  { label: 'Export guest list as CSV for TheKnot', icon: '📤' },
+  { label: 'Draft a reminder email for pending RSVPs', icon: '✉️' },
 ]
 
-export default function AIPlanner({ vendors, budget, tasks, readiness }) {
+export default function AIAssistant({ guests }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const endRef = useRef(null)
-  const days = daysUntil(WEDDING_DATE)
-
-  const totalBudget = budget.reduce((s, r) => s + (parseFloat(r.budget) || 0), 0)
-  const totalSpent = budget.reduce((s, r) => s + (parseFloat(r.spent) || 0), 0)
-  const remaining = totalBudget - totalSpent
-  const risks = vendors.filter(v => ['Payment Due', 'Not Started', 'Incomplete', 'Pending Approval'].includes(v.status))
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   const buildContext = () => {
-    const riskList = risks.map(r => `${r.vendor} (${r.status})`).join(', ')
-    const taskList = tasks.map(t => `${t.task} by ${t.date} [${t.priority}]`).join('; ')
-    return `You are an AI Wedding Chief of Staff helping a bride named Jessie plan her wedding on June 20, 2026 at Grand Island Mansion with ~95 guests.
+    const csv = guestsToCsvText(guests)
+    return `You are an AI assistant helping Jessie, a busy bride, manage her wedding guest list. She is consolidating information that used to be scattered across Google Sheets, TheKnot, WeddingWire, Minted, AislePlanner, and a Reminders app — your job is to be the single source of truth and help her query and reformat this guest data for whatever she needs next (exporting to a wedding website, seating chart tool, caterer headcount, etc).
 
-Current wedding data:
-- Days until wedding: ${days}
-- Readiness score: ${readiness}%
-- Total budget: $${totalBudget.toLocaleString()}, spent: $${totalSpent.toLocaleString()}, remaining: $${remaining.toLocaleString()}
-- Open risks: ${riskList || 'none'}
-- Upcoming tasks: ${taskList || 'none'}
-- All vendors: ${vendors.map(v => `${v.vendor} (${v.status}, $${v.cost})`).join(', ')}
+Current guest list (CSV):
+${csv}
 
-Be warm, concise, and decisive. Speak like a trusted advisor who knows wedding planning deeply. Use bullet points when listing items. When drafting emails, write them in full. Keep responses focused and actionable.`
+When asked to "export" or "format" data for a specific platform (TheKnot, WeddingWire, Minted, AislePlanner, a caterer, etc.), produce a clean CSV or table in a code block using only the relevant columns for that purpose, and briefly explain what you included. When asked a question about the guest list, answer directly using the data above — don't make up guests that aren't listed. Be warm, concise, and decisive. Use bullet points when listing multiple guests.`
   }
 
   const sendMessage = async (text) => {
@@ -52,7 +40,7 @@ Be warm, concise, and decisive. Speak like a trusted advisor who knows wedding p
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'claude-sonnet-4-5',
-          max_tokens: 1000,
+          max_tokens: 1200,
           system: buildContext(),
           messages: newHistory.map(m => ({ role: m.role, content: m.content })),
         }),
@@ -74,9 +62,8 @@ Be warm, concise, and decisive. Speak like a trusted advisor who knows wedding p
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 20 }}>
-      {/* Sidebar */}
       <div>
-        <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', padding: '24px', marginBottom: 16 }}>
+        <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', padding: 24, marginBottom: 16 }}>
           <div style={{ fontSize: 11, letterSpacing: '0.15em', color: '#B89A6A', marginBottom: 14, fontWeight: 500 }}>QUICK ACTIONS</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {QUICK_ACTIONS.map((a, i) => (
@@ -87,8 +74,6 @@ Be warm, concise, and decisive. Speak like a trusted advisor who knows wedding p
                   cursor: 'pointer', fontSize: 12, color: '#2C2416', textAlign: 'left',
                   fontFamily: 'Jost, sans-serif', lineHeight: 1.4,
                 }}
-                onMouseOver={e => { e.currentTarget.style.borderColor = '#B89A6A'; e.currentTarget.style.background = '#FBF7F0' }}
-                onMouseOut={e => { e.currentTarget.style.borderColor = '#E8DCC8'; e.currentTarget.style.background = '#FDFCF9' }}
               >
                 <span style={{ fontSize: 16 }}>{a.icon}</span> {a.label}
               </button>
@@ -96,20 +81,16 @@ Be warm, concise, and decisive. Speak like a trusted advisor who knows wedding p
           </div>
         </div>
         <div style={{ background: '#F0EDE8', borderRadius: 10, padding: '16px 18px' }}>
-          <div className="serif" style={{ fontSize: 15, color: '#2C2416', marginBottom: 6, fontStyle: 'italic' }}>
-            "{days} days left"
-          </div>
           <p style={{ fontSize: 12, color: '#7A6E5C', lineHeight: 1.6 }}>
-            Your Chief of Staff knows your full vendor list, budget, and upcoming tasks.
+            Knows your full guest list — RSVPs, meals, tables, hotel, and dietary notes. Ask it to query or reformat data for any platform you need.
           </p>
         </div>
       </div>
 
-      {/* Chat window */}
       <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', display: 'flex', flexDirection: 'column', height: 560 }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid #F0EDE8' }}>
-          <div className="serif" style={{ fontSize: 20, fontWeight: 400, color: '#2C2416' }}>Wedding Chief of Staff</div>
-          <div style={{ fontSize: 12, color: '#A89880' }}>Powered by Claude · Knows your full plan</div>
+          <div className="serif" style={{ fontSize: 20, fontWeight: 400, color: '#2C2416' }}>Guest List Assistant</div>
+          <div style={{ fontSize: 12, color: '#A89880' }}>Powered by Claude · Knows your guest list</div>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -117,7 +98,7 @@ Be warm, concise, and decisive. Speak like a trusted advisor who knows wedding p
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
               <div className="serif" style={{ fontSize: 18, color: '#B89A6A', marginBottom: 8, fontStyle: 'italic' }}>How can I help you today?</div>
               <p style={{ fontSize: 13, color: '#A89880', lineHeight: 1.6 }}>
-                Ask me anything about your wedding — I have full context on your vendors, budget, timeline, and risks.
+                Ask me to find guests, summarize RSVPs, or format your list for another wedding site.
               </p>
             </div>
           )}
@@ -151,7 +132,7 @@ Be warm, concise, and decisive. Speak like a trusted advisor who knows wedding p
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
-            placeholder="Ask your Chief of Staff anything..."
+            placeholder="Ask about your guest list…"
             style={{
               flex: 1, padding: '10px 14px', border: '1px solid #E0D4C0', borderRadius: 8,
               fontSize: 13, color: '#2C2416', background: '#FDFCF9', outline: 'none',
