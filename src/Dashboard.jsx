@@ -8,6 +8,7 @@ const CATEGORIES_VENDOR = ['Venue', 'Photography', 'Flowers', 'Entertainment', '
 
 const EMPTY_VENDOR = { vendor: '', category: 'Venue', status: 'Not Started', cost: '', dueDate: '' }
 const EMPTY_BUDGET = { category: '', budget: '', spent: '' }
+const EMPTY_TIMELINE_ITEM = { time: '', endTime: '', title: '', location: '', notes: '' }
 
 function InlineEdit({ value, onChange, type = 'text', options, style = {} }) {
   const [editing, setEditing] = useState(false)
@@ -51,7 +52,7 @@ function InlineEdit({ value, onChange, type = 'text', options, style = {} }) {
   )
 }
 
-export default function Dashboard({ vendors: initialVendors, budget: initialBudget, tasks, clientName, clientDetails, googleConnected, onReset }) {
+export default function Dashboard({ vendors: initialVendors, budget: initialBudget, tasks, dayTimeline, clientName, clientDetails, googleConnected, onReset }) {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [vendors, setVendors] = useState(initialVendors)
   const [budget, setBudget] = useState(initialBudget)
@@ -62,6 +63,26 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
   const [taskList, setTaskList] = useState(tasks)
   const [addingTask, setAddingTask] = useState(false)
   const [newTask, setNewTask] = useState({ date: '', task: '', priority: 'High' })
+  const [timeline, setTimeline] = useState(dayTimeline || [])
+  const [addingTimelineItem, setAddingTimelineItem] = useState(false)
+  const [newTimelineItem, setNewTimelineItem] = useState(EMPTY_TIMELINE_ITEM)
+
+  // --- Day-of Timeline CRUD ---
+  const updateTimelineItem = (i, field, val) => setTimeline(ts => ts.map((t, idx) => idx === i ? { ...t, [field]: val } : t))
+  const deleteTimelineItem = (i) => setTimeline(ts => ts.filter((_, idx) => idx !== i))
+  const saveNewTimelineItem = () => {
+    if (!newTimelineItem.title.trim()) return
+    setTimeline(ts => [...ts, { ...newTimelineItem }])
+    setNewTimelineItem(EMPTY_TIMELINE_ITEM)
+    setAddingTimelineItem(false)
+  }
+  const moveTimelineItem = (i, dir) => setTimeline(ts => {
+    const j = i + dir
+    if (j < 0 || j >= ts.length) return ts
+    const copy = [...ts]
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+    return copy
+  })
 
   const updateTask = (i, field, val) => setTaskList(ts => ts.map((t, idx) => idx === i ? { ...t, [field]: val } : t))
   const deleteTask = (i) => setTaskList(ts => ts.filter((_, idx) => idx !== i))
@@ -104,7 +125,7 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
     setAddingBudget(false)
   }
 
-  const TABS = ['dashboard', 'vendors', 'budget', 'ai-planner']
+  const TABS = ['dashboard', 'vendors', 'budget', 'day-of', 'ai-planner']
 
   const cellStyle = { padding: '12px 16px', fontSize: 13 }
   const thStyle = { padding: '11px 16px', textAlign: 'left', fontSize: 11, color: '#A89880', fontWeight: 500, letterSpacing: '0.1em', borderBottom: '1px solid #F0EDE8', background: '#FDFCF9' }
@@ -142,7 +163,7 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
               borderBottom: activeTab === tab ? '2px solid #B89A6A' : '2px solid transparent',
               transition: 'color 0.15s',
             }}>
-              {tab === 'ai-planner' ? 'AI Planner' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'ai-planner' ? 'AI Planner' : tab === 'day-of' ? 'Day-Of Timeline' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -420,6 +441,77 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
           </div>
         )}
 
+        {/* DAY-OF TIMELINE */}
+        {activeTab === 'day-of' && (
+          <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', overflow: 'hidden' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #F0EDE8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div className="serif" style={{ fontSize: 22, fontWeight: 400 }}>Day-Of Timeline</div>
+                <div style={{ fontSize: 12, color: '#A89880', marginTop: 2 }}>Step-by-step schedule for the wedding day</div>
+              </div>
+              <button onClick={() => { setAddingTimelineItem(true); setNewTimelineItem(EMPTY_TIMELINE_ITEM) }} style={addBtn}>
+                + Add Item
+              </button>
+            </div>
+
+            <div style={{ padding: '8px 0' }}>
+              {timeline.map((item, i) => (
+                <div key={i} style={{ display: 'flex', gap: 16, padding: '16px 24px', borderBottom: i < timeline.length - 1 || addingTimelineItem ? '1px solid #F0EDE8' : 'none' }}
+                  onMouseOver={e => e.currentTarget.querySelector('.tl-actions').style.opacity = '1'}
+                  onMouseOut={e => e.currentTarget.querySelector('.tl-actions').style.opacity = '0'}>
+                  <div style={{ width: 150, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 500, color: '#B89A6A' }}>
+                      <InlineEdit value={item.time} onChange={val => updateTimelineItem(i, 'time', val)} style={{ width: 70 }} />
+                      <span>–</span>
+                      <InlineEdit value={item.endTime} onChange={val => updateTimelineItem(i, 'endTime', val)} style={{ width: 70 }} />
+                    </div>
+                    <div className="tl-actions" style={{ display: 'flex', gap: 4, marginTop: 6, opacity: 0, transition: 'opacity 0.15s' }}>
+                      <button onClick={() => moveTimelineItem(i, -1)} title="Move up" style={moveBtn}>↑</button>
+                      <button onClick={() => moveTimelineItem(i, 1)} title="Move down" style={moveBtn}>↓</button>
+                      <button onClick={() => deleteTimelineItem(i)} title="Delete" style={deleteBtn}>✕</button>
+                    </div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <InlineEdit value={item.title} onChange={val => updateTimelineItem(i, 'title', val)} style={{ fontSize: 15, fontWeight: 500, color: '#2C2416', display: 'block', marginBottom: 4 }} />
+                    {(item.location || true) && (
+                      <div style={{ fontSize: 12, color: '#7A8C6E', marginBottom: 4, fontStyle: 'italic' }}>
+                        <InlineEdit value={item.location} onChange={val => updateTimelineItem(i, 'location', val)} style={{ fontStyle: 'italic' }} />
+                      </div>
+                    )}
+                    <InlineEdit value={item.notes} onChange={val => updateTimelineItem(i, 'notes', val)} style={{ fontSize: 13, color: '#7A6E5C', display: 'block', lineHeight: 1.5 }} />
+                  </div>
+                </div>
+              ))}
+
+              {addingTimelineItem && (
+                <div style={{ display: 'flex', gap: 16, padding: '16px 24px', background: '#FDFCF9' }}>
+                  <div style={{ width: 150, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <input style={addRowInputStyle} placeholder="Start time" value={newTimelineItem.time} onChange={e => setNewTimelineItem(t => ({ ...t, time: e.target.value }))} autoFocus />
+                    <input style={addRowInputStyle} placeholder="End time" value={newTimelineItem.endTime} onChange={e => setNewTimelineItem(t => ({ ...t, endTime: e.target.value }))} />
+                  </div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <input style={addRowInputStyle} placeholder="Title" value={newTimelineItem.title} onChange={e => setNewTimelineItem(t => ({ ...t, title: e.target.value }))} />
+                    <input style={addRowInputStyle} placeholder="Location" value={newTimelineItem.location} onChange={e => setNewTimelineItem(t => ({ ...t, location: e.target.value }))} />
+                    <textarea style={{ ...addRowInputStyle, resize: 'vertical', minHeight: 50 }} placeholder="Notes / details" value={newTimelineItem.notes} onChange={e => setNewTimelineItem(t => ({ ...t, notes: e.target.value }))} />
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={saveNewTimelineItem} style={saveBtn}>Save</button>
+                      <button onClick={() => setAddingTimelineItem(false)} style={cancelBtn}>Cancel</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {timeline.length === 0 && !addingTimelineItem && (
+                <div style={{ padding: '40px 24px', textAlign: 'center', color: '#A89880', fontSize: 13 }}>No timeline items yet. Click "+ Add Item" to get started.</div>
+              )}
+            </div>
+
+            <div style={{ padding: '12px 24px', background: '#FDFCF9', borderTop: '1px solid #F0EDE8' }}>
+              <span style={{ fontSize: 12, color: '#A89880' }}>{timeline.length} timeline items</span>
+            </div>
+          </div>
+        )}
+
         {/* AI PLANNER */}
         {activeTab === 'ai-planner' && (
           <AIPlanner vendors={vendors} budget={budget} tasks={taskList} readiness={readiness} />
@@ -436,6 +528,10 @@ const addBtn = {
 }
 const deleteBtn = {
   background: 'none', border: 'none', color: '#D4B8A8', fontSize: 13,
+  cursor: 'pointer', padding: '2px 6px', borderRadius: 4, lineHeight: 1,
+}
+const moveBtn = {
+  background: 'none', border: '1px solid #E8DCC8', color: '#A89880', fontSize: 11,
   cursor: 'pointer', padding: '2px 6px', borderRadius: 4, lineHeight: 1,
 }
 const saveBtn = {

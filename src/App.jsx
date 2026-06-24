@@ -3,7 +3,7 @@ import OnboardScreen from './OnboardScreen'
 import UploadScreen from './UploadScreen'
 import ImportScreen from './ImportScreen'
 import Dashboard from './Dashboard'
-import { SAMPLE_VENDORS, SAMPLE_BUDGET, SAMPLE_TASKS, parseCsv } from './data'
+import { SAMPLE_VENDORS, SAMPLE_BUDGET, SAMPLE_TASKS, SAMPLE_DAY_TIMELINE, parseCsv } from './data'
 
 function clientNameFromParam(param) {
   if (!param) return null
@@ -90,6 +90,7 @@ export default function App() {
   const [vendors, setVendors] = useState(SAMPLE_VENDORS)
   const [budget, setBudget] = useState(SAMPLE_BUDGET)
   const [tasks, setTasks] = useState(SAMPLE_TASKS)
+  const [dayTimeline, setDayTimeline] = useState(SAMPLE_DAY_TIMELINE)
   const [usedSample, setUsedSample] = useState(false)
   const [googleConnected, setGoogleConnected] = useState(false)
   const [clientDetails, setClientDetails] = useState(null)
@@ -230,6 +231,7 @@ export default function App() {
           vendors={vendors}
           budget={budget}
           tasks={tasks}
+          dayTimeline={dayTimeline}
           clientName={clientName}
           clientDetails={clientDetails}
           googleConnected={googleConnected}
