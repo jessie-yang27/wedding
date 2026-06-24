@@ -149,8 +149,8 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
               <div className="serif" style={{ fontSize: 28, fontWeight: 300, color: '#2C2416', lineHeight: 1 }}>{days}</div>
               <div style={{ fontSize: 11, color: '#A89880', letterSpacing: '0.1em' }}>DAYS TO GO</div>
             </div>
-            <button onClick={onReset} style={{ fontSize: 12, color: '#A89880', background: 'none', border: '1px solid #E0D4C0', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>
-              ← Back
+            <button onClick={() => { if (window.confirm('Clear all data and start over? This removes vendors, budget, tasks, and the day-of timeline.')) onReset() }} style={{ fontSize: 12, color: '#C4614A', background: 'none', border: '1px solid #E8C8BE', borderRadius: 6, padding: '6px 14px', cursor: 'pointer' }}>
+              Clear Everything
             </button>
           </div>
         </div>

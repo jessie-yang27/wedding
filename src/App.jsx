@@ -81,11 +81,7 @@ export default function App() {
   const storageKey = clientParam ? `onboarded_${clientParam}` : null
   const alreadyOnboarded = storageKey ? !!localStorage.getItem(storageKey) : false
 
-  const [screen, setScreen] = useState(() => {
-    if (alreadyOnboarded) return 'dashboard'
-    if (clientParam) return 'onboard'
-    return 'upload'
-  })
+  const [screen, setScreen] = useState('dashboard')
 
   const [vendors, setVendors] = useState(SAMPLE_VENDORS)
   const [budget, setBudget] = useState(SAMPLE_BUDGET)
@@ -237,9 +233,13 @@ export default function App() {
           googleConnected={googleConnected}
           onReset={() => {
             if (storageKey) localStorage.removeItem(storageKey)
-            setScreen(clientParam ? 'onboard' : 'upload')
+            setVendors([])
+            setBudget([])
+            setTasks([])
+            setDayTimeline([])
             setUsedSample(false)
             setGoogleData(null)
+            setScreen('upload')
           }}
         />
       )}
