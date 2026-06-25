@@ -8,10 +8,10 @@ export const EMPTY_WEDDING_INFO = {
 }
 
 export const DEFAULT_COLUMNS = [
-  { key: 'firstName', label: 'First Name' },
-  { key: 'lastName', label: 'Last Name' },
-  { key: 'tier', label: 'Tier' },
-  { key: 'relationship', label: 'Relationship' },
+  { key: 'firstName', label: 'First Name', type: 'text', options: [] },
+  { key: 'lastName', label: 'Last Name', type: 'text', options: [] },
+  { key: 'tier', label: 'Tier', type: 'select', options: ['Tier 0', 'Tier 1', 'Tier 2', 'Tier 3'] },
+  { key: 'relationship', label: 'Relationship', type: 'text', options: [] },
 ]
 
 export function loadWeddingInfo() {
