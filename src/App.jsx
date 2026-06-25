@@ -4,8 +4,8 @@ import GuestSheet from './GuestSheet'
 import { loadWeddingInfo, saveWeddingInfo, loadGuestSheet, saveGuestSheet } from './data'
 
 const TABS = [
-  { key: 'info', label: 'Wedding Details' },
   { key: 'guests', label: 'Guest List' },
+  { key: 'info', label: 'Wedding Details' },
 ]
 
 const pencilBtn = {
@@ -90,7 +90,7 @@ function DetailsLine({ weddingDate, venue, onSave }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState('info')
+  const [tab, setTab] = useState('guests')
   const [info, setInfo] = useState(loadWeddingInfo)
   const [sheet, setSheet] = useState(loadGuestSheet)
 
