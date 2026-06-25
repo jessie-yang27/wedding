@@ -61,6 +61,7 @@ function Cell({ value, column, onChange, onKeyDown, onPaste, inputRef }) {
         onChange={e => onChange(e.target.value)}
         onKeyDown={onKeyDown}
         onPaste={onPaste}
+        data-grid-select="true"
         style={{ ...selectStyle, background: opt?.color || 'transparent' }}
       >
         <option value="">—</option>
@@ -289,6 +290,18 @@ export default function GuestSheet({ sheet, setSheet }) {
     const up = () => { isDragSelectingRef.current = false }
     document.addEventListener('mouseup', up)
     return () => document.removeEventListener('mouseup', up)
+  }, [])
+
+  useEffect(() => {
+    const handleCopy = (e) => {
+      const el = document.activeElement
+      if (el?.tagName === 'SELECT' && el.dataset.gridSelect === 'true') {
+        e.clipboardData.setData('text/plain', el.value || '')
+        e.preventDefault()
+      }
+    }
+    document.addEventListener('copy', handleCopy)
+    return () => document.removeEventListener('copy', handleCopy)
   }, [])
 
 
@@ -604,7 +617,14 @@ export default function GuestSheet({ sheet, setSheet }) {
 
   const handleCellPaste = (e, row, colKey) => {
     const text = e.clipboardData.getData('text')
-    if (!text.includes('\t') && !text.includes('\n')) return
+    if (!text.includes('\t') && !text.includes('\n')) {
+      const column = visibleColumns.find(c => c.key === colKey)
+      if (column?.type === 'select') {
+        e.preventDefault()
+        updateCell(row.id, colKey, text.trim())
+      }
+      return
+    }
     e.preventDefault()
     const grid = text.replace(/\r/g, '').split('\n').filter((line, i, arr) => !(i === arr.length - 1 && line === '')).map(line => line.split('\t'))
     const startRi = visibleRows.findIndex(({ r }) => r.id === row.id)
