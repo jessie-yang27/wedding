@@ -210,9 +210,12 @@ function FilterPanel({ column, values, active, onApply, onClose }) {
   )
 }
 
-function RowDetailPanel({ row, columns, onChange, onClose }) {
+function RowDetailPanel({ row, columns, onChange, onClose, sentMessages }) {
   const titleParts = [row.firstName, row.lastName].filter(Boolean)
   const title = titleParts.join(' ') || 'Guest'
+  const thread = (sentMessages || [])
+    .filter(m => m.recipientIds?.includes(row.id))
+    .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
 
   return createPortal(
     <div style={detailOverlay} onMouseDown={onClose}>
@@ -249,6 +252,28 @@ function RowDetailPanel({ row, columns, onChange, onClose }) {
               style={notesStyle}
             />
           </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.08em', color: '#B89A6A', fontWeight: 500, marginBottom: 6 }}>
+              MESSAGE HISTORY
+            </label>
+            {thread.length === 0 ? (
+              <div style={{ fontSize: 12, color: '#A89880' }}>No messages sent yet.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {thread.map(m => (
+                  <div key={m.id} style={{ border: '1px solid #E8DCC8', borderRadius: 8, padding: '8px 10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#B89A6A', fontWeight: 500, marginBottom: 4 }}>
+                      <span>{m.type === 'email' ? '✉ Email' : '✆ Text'}</span>
+                      <span>{m.sentAt ? new Date(m.sentAt).toLocaleDateString() : ''}</span>
+                    </div>
+                    {m.subject && <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>{m.subject}</div>}
+                    <div style={{ fontSize: 12, color: '#5A4F3A', whiteSpace: 'pre-wrap' }}>{m.body}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>,
@@ -256,7 +281,7 @@ function RowDetailPanel({ row, columns, onChange, onClose }) {
   )
 }
 
-export default function GuestSheet({ sheet, setSheet }) {
+export default function GuestSheet({ sheet, setSheet, sentMessages }) {
   const { columns, rows } = sheet
   const visibleColumns = columns.filter(c => !c.hidden)
   const hiddenColumns = columns.filter(c => c.hidden)
@@ -851,6 +876,7 @@ export default function GuestSheet({ sheet, setSheet }) {
           columns={columns}
           onChange={(key, val) => updateCell(detailRow.id, key, val)}
           onClose={() => setDetailRowId(null)}
+          sentMessages={sentMessages}
         />
       )}
 

@@ -80,3 +80,50 @@ export function loadGuestSheet() {
 export function saveGuestSheet(sheet) {
   localStorage.setItem(GUEST_SHEET_KEY, JSON.stringify(sheet))
 }
+
+const MESSAGES_KEY = 'message_center'
+
+export const EMPTY_MESSAGE_CENTER = {
+  drafts: [],
+  sent: [],
+  emailColumnKey: '',
+  phoneColumnKey: '',
+}
+
+export const MESSAGE_TEMPLATES = [
+  {
+    label: 'Save the Date',
+    type: 'email',
+    subject: 'Save the Date — {{coupleName}}',
+    body: "Hi {{firstName}},\n\nWe're getting married! Please save the date for {{weddingDate}} at {{venue}}. A formal invitation will follow.\n\nWith love,\n{{coupleName}}",
+  },
+  {
+    label: 'Wedding Invitation',
+    type: 'email',
+    subject: "You're Invited — {{coupleName}}'s Wedding",
+    body: 'Dear {{firstName}},\n\nWe would be honored to have you join us as we celebrate our wedding on {{weddingDate}} at {{venue}}.\n\nPlease let us know if you can make it.\n\nLove,\n{{coupleName}}',
+  },
+  {
+    label: 'RSVP Reminder',
+    type: 'text',
+    body: "Hi {{firstName}}! Friendly reminder to RSVP for {{coupleName}}'s wedding on {{weddingDate}}. We'd love to know if you can make it.",
+  },
+  {
+    label: 'Thank You',
+    type: 'text',
+    body: 'Hi {{firstName}}, thank you so much for celebrating with us at {{venue}}! It meant the world to have you there. With love, {{coupleName}}',
+  },
+]
+
+export function loadMessages() {
+  try {
+    const raw = localStorage.getItem(MESSAGES_KEY)
+    return raw ? { ...EMPTY_MESSAGE_CENTER, ...JSON.parse(raw) } : { ...EMPTY_MESSAGE_CENTER }
+  } catch {
+    return { ...EMPTY_MESSAGE_CENTER }
+  }
+}
+
+export function saveMessages(state) {
+  localStorage.setItem(MESSAGES_KEY, JSON.stringify(state))
+}
