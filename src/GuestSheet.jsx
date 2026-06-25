@@ -273,6 +273,7 @@ export default function GuestSheet({ sheet, setSheet }) {
   const undoTimerRef = useRef(null)
   const isDragSelectingRef = useRef(false)
   const dragAnchorRef = useRef(null)
+  const lastSelectEdgeRef = useRef(null)
 
   useEffect(() => {
     if (!popover) return
@@ -393,16 +394,37 @@ export default function GuestSheet({ sheet, setSheet }) {
     })
   }
 
-  const startDragSelect = (i, rowId) => {
+  const startDragSelect = (e, i, rowId) => {
+    if (e.shiftKey || e.metaKey || e.ctrlKey) return
     isDragSelectingRef.current = true
     dragAnchorRef.current = i
+    lastSelectEdgeRef.current = i
     setSelectedIds(new Set([rowId]))
   }
   const extendDragSelect = (i) => {
     if (!isDragSelectingRef.current || dragAnchorRef.current === null) return
+    lastSelectEdgeRef.current = i
     const lo = Math.min(dragAnchorRef.current, i)
     const hi = Math.max(dragAnchorRef.current, i)
     setSelectedIds(new Set(visibleRows.slice(lo, hi + 1).map(({ r }) => r.id)))
+  }
+
+  const handleRowSelectClick = (e, i, rowId) => {
+    if (e.shiftKey) {
+      const anchor = dragAnchorRef.current ?? i
+      const lo = Math.min(anchor, i)
+      const hi = Math.max(anchor, i)
+      lastSelectEdgeRef.current = i
+      setSelectedIds(new Set(visibleRows.slice(lo, hi + 1).map(({ r }) => r.id)))
+    } else if (e.metaKey || e.ctrlKey) {
+      dragAnchorRef.current = i
+      lastSelectEdgeRef.current = i
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        if (next.has(rowId)) next.delete(rowId); else next.add(rowId)
+        return next
+      })
+    }
   }
 
   const addColumn = ({ label, type, options }) => {
@@ -504,15 +526,44 @@ export default function GuestSheet({ sheet, setSheet }) {
 
   useEffect(() => {
     const handler = (e) => {
-      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'a') return
       const tag = document.activeElement?.tagName
-      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
-      e.preventDefault()
-      setSelectedIds(new Set(visibleRows.map(({ r }) => r.id)))
+      const isEditing = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA'
+
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
+        if (isEditing) return
+        e.preventDefault()
+        setSelectedIds(new Set(visibleRows.map(({ r }) => r.id)))
+        return
+      }
+
+      if (isEditing) return
+
+      if (e.key === 'Escape') {
+        setSelectedIds(new Set())
+        return
+      }
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0) {
+        e.preventDefault()
+        removeSelectedRows()
+        return
+      }
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (!e.shiftKey || dragAnchorRef.current === null) return
+        const dir = e.key === 'ArrowDown' ? 1 : -1
+        const currentEdge = lastSelectEdgeRef.current ?? dragAnchorRef.current
+        const nextEdge = Math.max(0, Math.min(visibleRows.length - 1, currentEdge + dir))
+        lastSelectEdgeRef.current = nextEdge
+        const lo = Math.min(dragAnchorRef.current, nextEdge)
+        const hi = Math.max(dragAnchorRef.current, nextEdge)
+        e.preventDefault()
+        setSelectedIds(new Set(visibleRows.slice(lo, hi + 1).map(({ r }) => r.id)))
+      }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [visibleRows])
+  }, [visibleRows, selectedIds])
 
   const colOrder = visibleColumns.map(c => c.key)
   const handleCellKeyDown = (e, row, colKey) => {
@@ -662,8 +713,9 @@ export default function GuestSheet({ sheet, setSheet }) {
                 onDrop={e => { e.preventDefault(); reorderRow(draggedRowId, row.id); setDraggedRowId(null) }}
               >
                 <td style={{ ...cellStyle, textAlign: 'center', userSelect: 'none' }}
-                  onMouseDown={() => startDragSelect(i, row.id)}
+                  onMouseDown={e => startDragSelect(e, i, row.id)}
                   onMouseEnter={() => extendDragSelect(i)}
+                  onClick={e => handleRowSelectClick(e, i, row.id)}
                 >
                   <span
                     draggable
@@ -690,7 +742,12 @@ export default function GuestSheet({ sheet, setSheet }) {
                   </div>
                 </td>
                 {visibleColumns.map(c => (
-                  <td key={c.key} style={cellStyle}>
+                  <td
+                    key={c.key}
+                    style={cellStyle}
+                    onMouseDownCapture={e => { if (e.shiftKey || e.metaKey || e.ctrlKey) e.preventDefault() }}
+                    onClick={e => { if (e.shiftKey || e.metaKey || e.ctrlKey) handleRowSelectClick(e, i, row.id) }}
+                  >
                     <Cell
                       value={row[c.key]}
                       column={c}
