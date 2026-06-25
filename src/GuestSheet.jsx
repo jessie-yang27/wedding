@@ -29,7 +29,7 @@ function Cell({ value, column, onChange, onKeyDown, inputRef }) {
   )
 }
 
-function FieldEditor({ initial, onSave, onCancel }) {
+function FieldEditor({ initial, onSave, onCancel, title }) {
   const [label, setLabel] = useState(initial?.label || '')
   const [type, setType] = useState(initial?.type || 'text')
   const [optionsText, setOptionsText] = useState((initial?.options || []).join(', '))
@@ -42,29 +42,35 @@ function FieldEditor({ initial, onSave, onCancel }) {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-      <input
-        autoFocus
-        value={label}
-        onChange={e => setLabel(e.target.value)}
-        placeholder="Field name, e.g. Plus One"
-        style={{ ...inputStyle, width: 200, border: '1px solid #E0D4C0', padding: '7px 8px' }}
-      />
-      <select value={type} onChange={e => setType(e.target.value)} style={{ ...selectStyle, border: '1px solid #E0D4C0', padding: '7px 8px' }}>
-        <option value="text">Text</option>
-        <option value="number">Number</option>
-        <option value="select">Dropdown list</option>
-      </select>
-      {type === 'select' && (
+    <div style={fieldMenu} onClick={e => e.stopPropagation()}>
+      <div style={{ fontSize: 11, color: '#A89880', fontWeight: 500, marginBottom: 10 }}>{title}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <input
-          value={optionsText}
-          onChange={e => setOptionsText(e.target.value)}
-          placeholder="Options, comma separated, e.g. Tier 0, Tier 1, Tier 2"
-          style={{ ...inputStyle, width: 280, border: '1px solid #E0D4C0', padding: '7px 8px' }}
+          autoFocus
+          value={label}
+          onChange={e => setLabel(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') onCancel() }}
+          placeholder="Field name, e.g. Plus One"
+          style={{ ...inputStyle, width: '100%', border: '1px solid #E0D4C0', padding: '7px 8px' }}
         />
-      )}
-      <button onClick={save} style={saveBtn}>Save</button>
-      <button onClick={onCancel} style={cancelBtn}>Cancel</button>
+        <select value={type} onChange={e => setType(e.target.value)} style={{ ...selectStyle, width: '100%', border: '1px solid #E0D4C0', padding: '7px 8px' }}>
+          <option value="text">Text</option>
+          <option value="number">Number</option>
+          <option value="select">Dropdown list</option>
+        </select>
+        {type === 'select' && (
+          <input
+            value={optionsText}
+            onChange={e => setOptionsText(e.target.value)}
+            placeholder="Options, comma separated"
+            style={{ ...inputStyle, width: '100%', border: '1px solid #E0D4C0', padding: '7px 8px' }}
+          />
+        )}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={save} style={saveBtn}>Save</button>
+          <button onClick={onCancel} style={cancelBtn}>Cancel</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -81,7 +87,7 @@ function FilterPanel({ column, values, active, onApply, onClose }) {
   }
 
   return (
-    <div style={filterPanel}>
+    <div style={filterPanel} onClick={e => e.stopPropagation()}>
       <div style={{ fontSize: 11, color: '#A89880', fontWeight: 500, marginBottom: 8 }}>FILTER {column.label.toUpperCase()}</div>
       <div style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {values.length === 0 && <div style={{ fontSize: 12, color: '#A89880' }}>No values yet</div>}
@@ -195,17 +201,38 @@ export default function GuestSheet({ sheet, setSheet }) {
 
   const colOrder = columns.map(c => c.key)
   const handleCellKeyDown = (e, row, colKey) => {
-    if (e.key !== 'Enter') return
-    e.preventDefault()
     const ci = colOrder.indexOf(colKey)
     const ri = visibleRows.findIndex(({ r }) => r.id === row.id)
-    const isLastVisibleRow = ri === visibleRows.length - 1
-    if (isLastVisibleRow) {
-      const newRow = addRow()
-      focusCell(newRow.id, colKey)
-    } else {
-      const nextRow = visibleRows[ri + 1].r
-      focusCell(nextRow.id, colKey)
+
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const isLastVisibleRow = ri === visibleRows.length - 1
+      if (isLastVisibleRow) {
+        const newRow = addRow()
+        focusCell(newRow.id, colKey)
+      } else {
+        const nextRow = visibleRows[ri + 1].r
+        focusCell(nextRow.id, colKey)
+      }
+      return
+    }
+
+    const isTextInput = e.target.tagName === 'INPUT'
+    const atStart = !isTextInput || e.target.selectionStart === 0
+    const atEnd = !isTextInput || e.target.selectionEnd === e.target.value.length
+
+    if (e.key === 'ArrowDown' && ri < visibleRows.length - 1) {
+      e.preventDefault()
+      focusCell(visibleRows[ri + 1].r.id, colKey)
+    } else if (e.key === 'ArrowUp' && ri > 0) {
+      e.preventDefault()
+      focusCell(visibleRows[ri - 1].r.id, colKey)
+    } else if (e.key === 'ArrowLeft' && atStart && ci > 0) {
+      e.preventDefault()
+      focusCell(row.id, colOrder[ci - 1])
+    } else if (e.key === 'ArrowRight' && atEnd && ci < colOrder.length - 1) {
+      e.preventDefault()
+      focusCell(row.id, colOrder[ci + 1])
     }
   }
 
@@ -214,9 +241,15 @@ export default function GuestSheet({ sheet, setSheet }) {
     focusCell(row.id, columns[0]?.key)
   }
 
+  const closePopovers = () => {
+    setFilterPanelKey(null)
+    setEditingColKey(null)
+    setAddingCol(false)
+  }
+
   return (
-    <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', overflow: 'hidden' }}>
-      <div style={{ padding: '20px 24px', borderBottom: '1px solid #F0EDE8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+    <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', overflow: 'hidden' }} onClick={closePopovers}>
+      <div style={{ padding: '20px 24px', borderBottom: '1px solid #F0EDE8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }} onClick={e => e.stopPropagation()}>
         <div>
           <div className="serif" style={{ fontSize: 22, fontWeight: 400 }}>Guest List</div>
           <div style={{ fontSize: 12, color: '#A89880', marginTop: 2 }}>{rows.length} guest{rows.length === 1 ? '' : 's'} total</div>
@@ -236,12 +269,12 @@ export default function GuestSheet({ sheet, setSheet }) {
                 <th key={c.key} style={{ ...thStyle, position: 'relative' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {c.label.toUpperCase()}
-                    <button onClick={() => toggleSort(c.key)} title="Sort A–Z" style={removeColBtn}>
+                    <button onClick={e => { e.stopPropagation(); toggleSort(c.key) }} title="Sort A–Z" style={removeColBtn}>
                       {sort?.key === c.key ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}
                     </button>
-                    <button onClick={() => setFilterPanelKey(filterPanelKey === c.key ? null : c.key)} title="Filter" style={{ ...removeColBtn, color: filters[c.key] ? '#7A8C6E' : '#D4B8A8' }}>▽</button>
-                    <button onClick={() => setEditingColKey(c.key)} title="Edit field" style={removeColBtn}>⚙</button>
-                    <button onClick={() => removeColumn(c.key)} title="Remove field" style={removeColBtn}>✕</button>
+                    <button onClick={e => { e.stopPropagation(); setEditingColKey(null); setFilterPanelKey(filterPanelKey === c.key ? null : c.key) }} title="Filter" style={{ ...removeColBtn, color: filters[c.key] ? '#7A8C6E' : '#D4B8A8' }}>▽</button>
+                    <button onClick={e => { e.stopPropagation(); setFilterPanelKey(null); setEditingColKey(c.key) }} title="Edit field" style={removeColBtn}>⚙</button>
+                    <button onClick={e => { e.stopPropagation(); removeColumn(c.key) }} title="Remove field" style={removeColBtn}>✕</button>
                   </div>
                   {filterPanelKey === c.key && (
                     <FilterPanel
@@ -258,21 +291,26 @@ export default function GuestSheet({ sheet, setSheet }) {
                       onClose={() => setFilterPanelKey(null)}
                     />
                   )}
+                  {editingColKey === c.key && (
+                    <FieldEditor
+                      title="EDIT FIELD"
+                      initial={c}
+                      onSave={vals => saveColumnEdit(c.key, vals)}
+                      onCancel={() => setEditingColKey(null)}
+                    />
+                  )}
                 </th>
               ))}
-              <th style={thStyle}></th>
-            </tr>
-            {editingColKey && (
-              <tr>
-                <td colSpan={columns.length + 2} style={{ padding: '12px 24px', background: '#FDFCF9' }}>
+              <th style={{ ...thStyle, position: 'relative' }}>
+                {addingCol && (
                   <FieldEditor
-                    initial={columns.find(c => c.key === editingColKey)}
-                    onSave={vals => saveColumnEdit(editingColKey, vals)}
-                    onCancel={() => setEditingColKey(null)}
+                    title="NEW FIELD"
+                    onSave={addColumn}
+                    onCancel={() => setAddingCol(false)}
                   />
-                </td>
-              </tr>
-            )}
+                )}
+              </th>
+            </tr>
           </thead>
           <tbody>
             {visibleRows.map(({ r: row }, i) => (
@@ -297,15 +335,7 @@ export default function GuestSheet({ sheet, setSheet }) {
               </tr>
             ))}
 
-            {addingCol && (
-              <tr>
-                <td colSpan={columns.length + 2} style={{ padding: '12px 24px', background: '#FDFCF9' }}>
-                  <FieldEditor onSave={addColumn} onCancel={() => setAddingCol(false)} />
-                </td>
-              </tr>
-            )}
-
-            {rows.length === 0 && !addingCol && (
+            {rows.length === 0 && (
               <tr>
                 <td colSpan={columns.length + 2} onClick={startFromBlank} style={{ padding: 48, textAlign: 'center', color: '#A89880', fontSize: 13, cursor: 'text' }}>
                   Click anywhere here to start typing your guest list…
@@ -332,4 +362,8 @@ const cancelBtn = { background: 'none', border: '1px solid #E0D4C0', color: '#A8
 const filterPanel = {
   position: 'absolute', top: '100%', left: 0, zIndex: 10, background: 'white', border: '1px solid #E8DCC8',
   borderRadius: 8, padding: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 180, marginTop: 4,
+}
+const fieldMenu = {
+  position: 'absolute', top: '100%', left: 0, zIndex: 10, background: 'white', border: '1px solid #E8DCC8',
+  borderRadius: 8, padding: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 220, marginTop: 4,
 }
