@@ -1,4 +1,5 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { nextId } from './data'
 
 function emptyRow(columns) {
@@ -29,6 +30,20 @@ function Cell({ value, column, onChange, onKeyDown, inputRef }) {
   )
 }
 
+function Popover({ rect, children }) {
+  const ref = useRef(null)
+  if (!rect) return null
+  const style = {
+    position: 'fixed', top: rect.bottom + 6, left: rect.left, zIndex: 1000,
+    background: 'white', border: '1px solid #E8DCC8', borderRadius: 8, padding: 12,
+    boxShadow: '0 8px 24px rgba(0,0,0,0.18)', minWidth: 220,
+  }
+  return createPortal(
+    <div ref={ref} style={style} data-popover>{children}</div>,
+    document.body
+  )
+}
+
 function FieldEditor({ initial, onSave, onCancel, title }) {
   const [label, setLabel] = useState(initial?.label || '')
   const [type, setType] = useState(initial?.type || 'text')
@@ -42,7 +57,7 @@ function FieldEditor({ initial, onSave, onCancel, title }) {
   }
 
   return (
-    <div style={fieldMenu} onClick={e => e.stopPropagation()}>
+    <>
       <div style={{ fontSize: 11, color: '#A89880', fontWeight: 500, marginBottom: 10 }}>{title}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <input
@@ -71,7 +86,7 @@ function FieldEditor({ initial, onSave, onCancel, title }) {
           <button onClick={onCancel} style={cancelBtn}>Cancel</button>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -87,7 +102,7 @@ function FilterPanel({ column, values, active, onApply, onClose }) {
   }
 
   return (
-    <div style={filterPanel} onClick={e => e.stopPropagation()}>
+    <>
       <div style={{ fontSize: 11, color: '#A89880', fontWeight: 500, marginBottom: 8 }}>FILTER {column.label.toUpperCase()}</div>
       <div style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {values.length === 0 && <div style={{ fontSize: 12, color: '#A89880' }}>No values yet</div>}
@@ -103,18 +118,41 @@ function FilterPanel({ column, values, active, onApply, onClose }) {
         <button onClick={() => onApply(null)} style={cancelBtn}>Clear</button>
         <button onClick={onClose} style={cancelBtn}>Close</button>
       </div>
-    </div>
+    </>
   )
 }
 
 export default function GuestSheet({ sheet, setSheet }) {
   const { columns, rows } = sheet
-  const [addingCol, setAddingCol] = useState(false)
-  const [editingColKey, setEditingColKey] = useState(null)
+  // popover = { type: 'filter' | 'edit' | 'add', key, rect }
+  const [popover, setPopover] = useState(null)
   const [sort, setSort] = useState(null) // { key, dir: 'asc' | 'desc' }
   const [filters, setFilters] = useState({}) // { [key]: Set(values) }
-  const [filterPanelKey, setFilterPanelKey] = useState(null)
+  const [undoAction, setUndoAction] = useState(null) // { message, undo }
   const cellRefs = useRef({})
+  const undoTimerRef = useRef(null)
+
+  useEffect(() => {
+    if (!popover) return
+    const handleClick = (e) => {
+      if (e.target.closest('[data-popover]')) return
+      setPopover(null)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [popover])
+
+  const openPopover = (e, type, key) => {
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    setPopover(prev => (prev?.type === type && prev?.key === key) ? null : { type, key, rect })
+  }
+
+  const flashUndo = (message, undo) => {
+    clearTimeout(undoTimerRef.current)
+    setUndoAction({ message, undo })
+    undoTimerRef.current = setTimeout(() => setUndoAction(null), 8000)
+  }
 
   const setCellRef = (rowId, colKey, el) => {
     cellRefs.current[`${rowId}:${colKey}`] = el
@@ -134,7 +172,16 @@ export default function GuestSheet({ sheet, setSheet }) {
   }
 
   const removeRow = (rowId) => {
+    const index = rows.findIndex(r => r.id === rowId)
+    const removed = rows[index]
     setSheet(s => ({ ...s, rows: s.rows.filter(r => r.id !== rowId) }))
+    flashUndo('Guest removed.', () => {
+      setSheet(s => {
+        const next = [...s.rows]
+        next.splice(index, 0, removed)
+        return { ...s, rows: next }
+      })
+    })
   }
 
   const addColumn = ({ label, type, options }) => {
@@ -146,7 +193,7 @@ export default function GuestSheet({ sheet, setSheet }) {
       columns: [...s.columns, { key, label, type, options }],
       rows: s.rows.map(r => ({ ...r, [key]: '' })),
     }))
-    setAddingCol(false)
+    setPopover(null)
   }
 
   const saveColumnEdit = (key, { label, type, options }) => {
@@ -154,16 +201,29 @@ export default function GuestSheet({ sheet, setSheet }) {
       ...s,
       columns: s.columns.map(c => c.key === key ? { ...c, label, type, options } : c),
     }))
-    setEditingColKey(null)
+    setPopover(null)
   }
 
   const removeColumn = (key) => {
+    const index = columns.findIndex(c => c.key === key)
+    const removedColumn = columns[index]
+    const removedValues = rows.map(r => r[key])
     setSheet(s => ({
       columns: s.columns.filter(c => c.key !== key),
       rows: s.rows.map(r => { const { [key]: _, ...rest } = r; return rest }),
     }))
     setFilters(f => { const { [key]: _, ...rest } = f; return rest })
     if (sort?.key === key) setSort(null)
+    flashUndo(`Field "${removedColumn.label}" removed.`, () => {
+      setSheet(s => {
+        const cols = [...s.columns]
+        cols.splice(index, 0, removedColumn)
+        return {
+          columns: cols,
+          rows: s.rows.map((r, i) => ({ ...r, [key]: removedValues[i] ?? '' })),
+        }
+      })
+    })
   }
 
   const toggleSort = (key) => {
@@ -241,22 +301,16 @@ export default function GuestSheet({ sheet, setSheet }) {
     focusCell(row.id, columns[0]?.key)
   }
 
-  const closePopovers = () => {
-    setFilterPanelKey(null)
-    setEditingColKey(null)
-    setAddingCol(false)
-  }
-
   return (
-    <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', overflow: 'hidden' }} onClick={closePopovers}>
-      <div style={{ padding: '20px 24px', borderBottom: '1px solid #F0EDE8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }} onClick={e => e.stopPropagation()}>
+    <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', overflow: 'hidden' }}>
+      <div style={{ padding: '20px 24px', borderBottom: '1px solid #F0EDE8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div className="serif" style={{ fontSize: 22, fontWeight: 400 }}>Guest List</div>
           <div style={{ fontSize: 12, color: '#A89880', marginTop: 2 }}>{rows.length} guest{rows.length === 1 ? '' : 's'} total</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={addRow} style={addBtn}>+ Add Guest</button>
-          <button onClick={() => setAddingCol(true)} style={ghostBtn}>+ Add Field</button>
+          <button onClick={e => openPopover(e, 'add', null)} style={ghostBtn}>+ Add Field</button>
         </div>
       </div>
 
@@ -266,50 +320,19 @@ export default function GuestSheet({ sheet, setSheet }) {
             <tr>
               <th style={{ ...thStyle, width: 44, textAlign: 'center' }}>#</th>
               {columns.map(c => (
-                <th key={c.key} style={{ ...thStyle, position: 'relative' }}>
+                <th key={c.key} style={thStyle}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {c.label.toUpperCase()}
                     <button onClick={e => { e.stopPropagation(); toggleSort(c.key) }} title="Sort A–Z" style={removeColBtn}>
                       {sort?.key === c.key ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}
                     </button>
-                    <button onClick={e => { e.stopPropagation(); setEditingColKey(null); setFilterPanelKey(filterPanelKey === c.key ? null : c.key) }} title="Filter" style={{ ...removeColBtn, color: filters[c.key] ? '#7A8C6E' : '#D4B8A8' }}>▽</button>
-                    <button onClick={e => { e.stopPropagation(); setFilterPanelKey(null); setEditingColKey(c.key) }} title="Edit field" style={removeColBtn}>⚙</button>
+                    <button onClick={e => openPopover(e, 'filter', c.key)} title="Filter" style={{ ...removeColBtn, color: filters[c.key] ? '#7A8C6E' : '#D4B8A8' }}>▽</button>
+                    <button onClick={e => openPopover(e, 'edit', c.key)} title="Edit field" style={removeColBtn}>⚙</button>
                     <button onClick={e => { e.stopPropagation(); removeColumn(c.key) }} title="Remove field" style={removeColBtn}>✕</button>
                   </div>
-                  {filterPanelKey === c.key && (
-                    <FilterPanel
-                      column={c}
-                      values={distinctValues(c.key)}
-                      active={filters[c.key]}
-                      onApply={(checked) => {
-                        setFilters(f => {
-                          if (checked === null) { const { [c.key]: _, ...rest } = f; return rest }
-                          return { ...f, [c.key]: checked }
-                        })
-                        setFilterPanelKey(null)
-                      }}
-                      onClose={() => setFilterPanelKey(null)}
-                    />
-                  )}
-                  {editingColKey === c.key && (
-                    <FieldEditor
-                      title="EDIT FIELD"
-                      initial={c}
-                      onSave={vals => saveColumnEdit(c.key, vals)}
-                      onCancel={() => setEditingColKey(null)}
-                    />
-                  )}
                 </th>
               ))}
-              <th style={{ ...thStyle, position: 'relative' }}>
-                {addingCol && (
-                  <FieldEditor
-                    title="NEW FIELD"
-                    onSave={addColumn}
-                    onCancel={() => setAddingCol(false)}
-                  />
-                )}
-              </th>
+              <th style={thStyle}></th>
             </tr>
           </thead>
           <tbody>
@@ -345,6 +368,58 @@ export default function GuestSheet({ sheet, setSheet }) {
           </tbody>
         </table>
       </div>
+
+      {popover?.type === 'filter' && (
+        <Popover rect={popover.rect}>
+          <FilterPanel
+            column={columns.find(c => c.key === popover.key)}
+            values={distinctValues(popover.key)}
+            active={filters[popover.key]}
+            onApply={(checked) => {
+              setFilters(f => {
+                if (checked === null) { const { [popover.key]: _, ...rest } = f; return rest }
+                return { ...f, [popover.key]: checked }
+              })
+              setPopover(null)
+            }}
+            onClose={() => setPopover(null)}
+          />
+        </Popover>
+      )}
+
+      {popover?.type === 'edit' && (
+        <Popover rect={popover.rect}>
+          <FieldEditor
+            title="EDIT FIELD"
+            initial={columns.find(c => c.key === popover.key)}
+            onSave={vals => saveColumnEdit(popover.key, vals)}
+            onCancel={() => setPopover(null)}
+          />
+        </Popover>
+      )}
+
+      {popover?.type === 'add' && (
+        <Popover rect={popover.rect}>
+          <FieldEditor
+            title="NEW FIELD"
+            onSave={addColumn}
+            onCancel={() => setPopover(null)}
+          />
+        </Popover>
+      )}
+
+      {undoAction && createPortal(
+        <div style={undoToast}>
+          <span>{undoAction.message}</span>
+          <button
+            onClick={() => { undoAction.undo(); setUndoAction(null) }}
+            style={undoBtn}
+          >
+            Undo
+          </button>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
@@ -359,11 +434,12 @@ const deleteBtn = { background: 'none', border: 'none', color: '#D4B8A8', fontSi
 const removeColBtn = { background: 'none', border: 'none', color: '#D4B8A8', fontSize: 11, cursor: 'pointer', padding: 0, lineHeight: 1 }
 const saveBtn = { background: '#7A8C6E', color: 'white', border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer' }
 const cancelBtn = { background: 'none', border: '1px solid #E0D4C0', color: '#A89880', borderRadius: 6, padding: '7px 10px', fontSize: 12, cursor: 'pointer' }
-const filterPanel = {
-  position: 'absolute', top: '100%', left: 0, zIndex: 10, background: 'white', border: '1px solid #E8DCC8',
-  borderRadius: 8, padding: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 180, marginTop: 4,
+const undoToast = {
+  position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 1100,
+  background: '#2C2416', color: '#F9F6F0', borderRadius: 10, padding: '12px 18px',
+  display: 'flex', alignItems: 'center', gap: 16, fontSize: 13, boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
 }
-const fieldMenu = {
-  position: 'absolute', top: '100%', left: 0, zIndex: 10, background: 'white', border: '1px solid #E8DCC8',
-  borderRadius: 8, padding: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 220, marginTop: 4,
+const undoBtn = {
+  background: 'none', border: '1px solid rgba(249,246,240,0.4)', color: '#F9F6F0',
+  borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer',
 }
