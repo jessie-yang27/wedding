@@ -286,7 +286,7 @@ export default function GuestSheet({ sheet, setSheet }) {
   }, [popover])
 
   useEffect(() => {
-    const up = () => { isDragSelectingRef.current = false; dragAnchorRef.current = null }
+    const up = () => { isDragSelectingRef.current = false }
     document.addEventListener('mouseup', up)
     return () => document.removeEventListener('mouseup', up)
   }, [])
