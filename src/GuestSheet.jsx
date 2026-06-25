@@ -3,9 +3,48 @@ import { createPortal } from 'react-dom'
 import { nextId, COLOR_PALETTE, SUGGESTED_FIELDS } from './data'
 
 function emptyRow(columns) {
-  const row = { id: nextId(), notes: '' }
+  const row = { id: nextId(), notes: '', partyId: null }
   columns.forEach(c => { row[c.key] = '' })
   return row
+}
+
+function NoteIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <line x1="8" y1="13" x2="16" y2="13" />
+      <line x1="8" y1="17" x2="16" y2="17" />
+    </svg>
+  )
+}
+
+function LinkIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 17H7A5 5 0 0 1 7 7h2" />
+      <path d="M15 7h2a5 5 0 0 1 0 10h-2" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
+  )
+}
+
+function EyeIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+function EyeOffIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  )
 }
 
 function selectedOption(column, value) {
@@ -218,6 +257,8 @@ function RowDetailPanel({ row, columns, onChange, onClose }) {
 
 export default function GuestSheet({ sheet, setSheet }) {
   const { columns, rows } = sheet
+  const visibleColumns = columns.filter(c => !c.hidden)
+  const hiddenColumns = columns.filter(c => c.hidden)
   // popover = { type: 'filter' | 'edit' | 'add', key, rect }
   const [popover, setPopover] = useState(null)
   const [sort, setSort] = useState(null) // { key, dir: 'asc' | 'desc' }
@@ -406,6 +447,28 @@ export default function GuestSheet({ sheet, setSheet }) {
     })
   }
 
+  const toggleColumnHidden = (key) => {
+    setSheet(s => ({ ...s, columns: s.columns.map(c => c.key === key ? { ...c, hidden: !c.hidden } : c) }))
+  }
+
+  const partyMemberNames = (row) => {
+    if (!row.partyId) return []
+    return rows.filter(r => r.partyId === row.partyId && r.id !== row.id)
+      .map(r => [r.firstName, r.lastName].filter(Boolean).join(' ') || 'Guest')
+  }
+
+  const linkSelectedAsParty = () => {
+    const ids = new Set(selectedIds)
+    const rowsInSelection = rows.filter(r => ids.has(r.id))
+    const partyId = rowsInSelection.find(r => r.partyId)?.partyId || `party_${nextId()}`
+    setSheet(s => ({ ...s, rows: s.rows.map(r => ids.has(r.id) ? { ...r, partyId } : r) }))
+  }
+
+  const unlinkSelectedParty = () => {
+    const ids = new Set(selectedIds)
+    setSheet(s => ({ ...s, rows: s.rows.map(r => ids.has(r.id) ? { ...r, partyId: null } : r) }))
+  }
+
   const toggleSort = (key) => {
     setSort(prev => {
       if (!prev || prev.key !== key) return { key, dir: 'asc' }
@@ -451,7 +514,7 @@ export default function GuestSheet({ sheet, setSheet }) {
     return () => document.removeEventListener('keydown', handler)
   }, [visibleRows])
 
-  const colOrder = columns.map(c => c.key)
+  const colOrder = visibleColumns.map(c => c.key)
   const handleCellKeyDown = (e, row, colKey) => {
     const ci = colOrder.indexOf(colKey)
     const ri = visibleRows.findIndex(({ r }) => r.id === row.id)
@@ -511,7 +574,7 @@ export default function GuestSheet({ sheet, setSheet }) {
         }
         const updates = {}
         line.forEach((val, ci) => {
-          const col = s.columns[startCi + ci]
+          const col = visibleColumns[startCi + ci]
           if (col) updates[col.key] = val
         })
         nextRows = nextRows.map(r => r.id === targetId ? { ...r, ...updates } : r)
@@ -540,6 +603,17 @@ export default function GuestSheet({ sheet, setSheet }) {
         </div>
       </div>
 
+      {hiddenColumns.length > 0 && (
+        <div style={{ padding: '8px 24px', borderBottom: '1px solid #F0EDE8', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: '#FDFCF9' }}>
+          <span style={{ fontSize: 11, color: '#A89880' }}>HIDDEN FIELDS:</span>
+          {hiddenColumns.map(c => (
+            <button key={c.key} onClick={() => toggleColumnHidden(c.key)} title="Show field" style={hiddenFieldChip}>
+              <EyeOffIcon /> {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -548,7 +622,7 @@ export default function GuestSheet({ sheet, setSheet }) {
                 <input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === visibleRows.length} onChange={toggleSelectAll} />
               </th>
               <th style={{ ...thStyle, width: 44, textAlign: 'center' }}>#</th>
-              {columns.map(c => (
+              {visibleColumns.map(c => (
                 <th
                   key={c.key}
                   style={{ ...thStyle, background: draggedColKey === c.key ? '#F0EBDD' : thStyle.background }}
@@ -569,6 +643,7 @@ export default function GuestSheet({ sheet, setSheet }) {
                     </button>
                     <button onClick={e => openPopover(e, 'filter', c.key)} title="Filter" style={{ ...removeColBtn, color: filters[c.key] ? '#7A8C6E' : '#D4B8A8' }}>▽</button>
                     <button onClick={e => openPopover(e, 'edit', c.key)} title="Edit field" style={removeColBtn}>⚙</button>
+                    <button onClick={e => { e.stopPropagation(); toggleColumnHidden(c.key) }} title="Hide field" style={removeColBtn}><EyeIcon /></button>
                     <button onClick={e => { e.stopPropagation(); removeColumn(c.key) }} title="Remove field" style={removeColBtn}>✕</button>
                   </div>
                 </th>
@@ -599,8 +674,22 @@ export default function GuestSheet({ sheet, setSheet }) {
                   >⠿</span>
                   <input type="checkbox" checked={selectedIds.has(row.id)} onChange={() => toggleRowSelected(row.id)} onMouseDown={e => e.stopPropagation()} />
                 </td>
-                <td style={{ ...cellStyle, textAlign: 'center', color: '#A89880' }}>{i + 1}</td>
-                {columns.map(c => (
+                <td style={{ ...cellStyle, textAlign: 'center', color: '#A89880' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    {i + 1}
+                    {row.partyId && (
+                      <span title={`Linked party: ${partyMemberNames(row).join(', ') || '—'}`} style={{ color: '#7A8C6E', display: 'inline-flex' }}>
+                        <LinkIcon />
+                      </span>
+                    )}
+                    {row.notes?.trim() && (
+                      <span title={row.notes} style={{ color: '#B89A6A', display: 'inline-flex' }}>
+                        <NoteIcon />
+                      </span>
+                    )}
+                  </div>
+                </td>
+                {visibleColumns.map(c => (
                   <td key={c.key} style={cellStyle}>
                     <Cell
                       value={row[c.key]}
@@ -623,7 +712,7 @@ export default function GuestSheet({ sheet, setSheet }) {
 
             {rows.length === 0 && (
               <tr>
-                <td colSpan={columns.length + 4} onClick={startFromBlank} style={{ padding: 48, textAlign: 'center', color: '#A89880', fontSize: 13, cursor: 'text' }}>
+                <td colSpan={visibleColumns.length + 4} onClick={startFromBlank} style={{ padding: 48, textAlign: 'center', color: '#A89880', fontSize: 13, cursor: 'text' }}>
                   Click anywhere here to start typing your guest list…
                 </td>
               </tr>
@@ -699,6 +788,8 @@ export default function GuestSheet({ sheet, setSheet }) {
             />
           )}
           {bulkField.key && <button onClick={applyBulkField} style={saveBtn}>Apply to all</button>}
+          {selectedIds.size >= 2 && <button onClick={linkSelectedAsParty} style={cancelBtn}><LinkIcon /> Link as Party</button>}
+          {rows.some(r => selectedIds.has(r.id) && r.partyId) && <button onClick={unlinkSelectedParty} style={cancelBtn}>Unlink Party</button>}
           <button onClick={removeSelectedRows} style={bulkDeleteBtn}>Delete</button>
           <button onClick={() => setSelectedIds(new Set())} style={cancelBtn}>Clear selection</button>
         </div>,
@@ -731,6 +822,10 @@ const deleteBtn = { background: 'none', border: 'none', color: '#D4B8A8', fontSi
 const expandBtn = { background: 'none', border: 'none', color: '#B89A6A', fontSize: 13, cursor: 'pointer', padding: '2px 6px', borderRadius: 4, lineHeight: 1 }
 const removeColBtn = { background: 'none', border: 'none', color: '#D4B8A8', fontSize: 11, cursor: 'pointer', padding: 0, lineHeight: 1 }
 const dragHandle = { cursor: 'grab', color: '#D4B8A8', fontSize: 12, marginRight: 4, userSelect: 'none' }
+const hiddenFieldChip = {
+  display: 'inline-flex', alignItems: 'center', gap: 4, background: 'white', border: '1px solid #E0D4C0',
+  color: '#A89880', borderRadius: 14, padding: '3px 10px', fontSize: 11, cursor: 'pointer',
+}
 const saveBtn = { background: '#7A8C6E', color: 'white', border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer' }
 const cancelBtn = { background: 'none', border: '1px solid #E0D4C0', color: '#A89880', borderRadius: 6, padding: '7px 10px', fontSize: 12, cursor: 'pointer' }
 const bulkDeleteBtn = { background: '#C4614A', color: 'white', border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer' }
