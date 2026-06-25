@@ -226,8 +226,12 @@ export default function GuestSheet({ sheet, setSheet }) {
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [detailRowId, setDetailRowId] = useState(null)
   const [bulkField, setBulkField] = useState({ key: '', value: '' })
+  const [draggedColKey, setDraggedColKey] = useState(null)
+  const [draggedRowId, setDraggedRowId] = useState(null)
   const cellRefs = useRef({})
   const undoTimerRef = useRef(null)
+  const isDragSelectingRef = useRef(false)
+  const dragAnchorRef = useRef(null)
 
   useEffect(() => {
     if (!popover) return
@@ -238,6 +242,13 @@ export default function GuestSheet({ sheet, setSheet }) {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [popover])
+
+  useEffect(() => {
+    const up = () => { isDragSelectingRef.current = false; dragAnchorRef.current = null }
+    document.addEventListener('mouseup', up)
+    return () => document.removeEventListener('mouseup', up)
+  }, [])
+
 
   const openPopover = (e, type, key) => {
     e.stopPropagation()
@@ -314,6 +325,45 @@ export default function GuestSheet({ sheet, setSheet }) {
     setSelectedIds(prev => prev.size === visibleRows.length ? new Set() : new Set(visibleRows.map(({ r }) => r.id)))
   }
 
+  const reorderColumn = (fromKey, toKey) => {
+    if (!fromKey || fromKey === toKey) return
+    setSheet(s => {
+      const cols = [...s.columns]
+      const fromIdx = cols.findIndex(c => c.key === fromKey)
+      const toIdx = cols.findIndex(c => c.key === toKey)
+      if (fromIdx === -1 || toIdx === -1) return s
+      const [moved] = cols.splice(fromIdx, 1)
+      cols.splice(toIdx, 0, moved)
+      return { ...s, columns: cols }
+    })
+  }
+
+  const reorderRow = (fromId, toId) => {
+    if (!fromId || fromId === toId) return
+    setSort(null)
+    setSheet(s => {
+      const next = [...s.rows]
+      const fromIdx = next.findIndex(r => r.id === fromId)
+      const toIdx = next.findIndex(r => r.id === toId)
+      if (fromIdx === -1 || toIdx === -1) return s
+      const [moved] = next.splice(fromIdx, 1)
+      next.splice(toIdx, 0, moved)
+      return { ...s, rows: next }
+    })
+  }
+
+  const startDragSelect = (i, rowId) => {
+    isDragSelectingRef.current = true
+    dragAnchorRef.current = i
+    setSelectedIds(new Set([rowId]))
+  }
+  const extendDragSelect = (i) => {
+    if (!isDragSelectingRef.current || dragAnchorRef.current === null) return
+    const lo = Math.min(dragAnchorRef.current, i)
+    const hi = Math.max(dragAnchorRef.current, i)
+    setSelectedIds(new Set(visibleRows.slice(lo, hi + 1).map(({ r }) => r.id)))
+  }
+
   const addColumn = ({ label, type, options }) => {
     const existingKeys = new Set(columns.map(c => c.key))
     let key = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || `field`
@@ -388,6 +438,18 @@ export default function GuestSheet({ sheet, setSheet }) {
     }
     return result
   }, [rows, filters, sort, columns])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'a') return
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return
+      e.preventDefault()
+      setSelectedIds(new Set(visibleRows.map(({ r }) => r.id)))
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [visibleRows])
 
   const colOrder = columns.map(c => c.key)
   const handleCellKeyDown = (e, row, colKey) => {
@@ -487,8 +549,20 @@ export default function GuestSheet({ sheet, setSheet }) {
               </th>
               <th style={{ ...thStyle, width: 44, textAlign: 'center' }}>#</th>
               {columns.map(c => (
-                <th key={c.key} style={thStyle}>
+                <th
+                  key={c.key}
+                  style={{ ...thStyle, background: draggedColKey === c.key ? '#F0EBDD' : thStyle.background }}
+                  onDragOver={e => { if (draggedColKey) e.preventDefault() }}
+                  onDrop={e => { e.preventDefault(); reorderColumn(draggedColKey, c.key); setDraggedColKey(null) }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span
+                      draggable
+                      onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDraggedColKey(c.key) }}
+                      onDragEnd={() => setDraggedColKey(null)}
+                      title="Drag to reorder"
+                      style={dragHandle}
+                    >⠿</span>
                     {c.label.toUpperCase()}
                     <button onClick={e => { e.stopPropagation(); toggleSort(c.key) }} title="Sort A–Z" style={removeColBtn}>
                       {sort?.key === c.key ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}
@@ -505,11 +579,25 @@ export default function GuestSheet({ sheet, setSheet }) {
           </thead>
           <tbody>
             {visibleRows.map(({ r: row }, i) => (
-              <tr key={row.id} style={{ borderBottom: '1px solid #F9F6F0', background: selectedIds.has(row.id) ? '#FBF8F0' : 'white' }}
+              <tr key={row.id}
+                style={{ borderBottom: '1px solid #F9F6F0', background: draggedRowId === row.id ? '#F0EBDD' : selectedIds.has(row.id) ? '#FBF8F0' : 'white' }}
                 onMouseOver={e => { if (!selectedIds.has(row.id)) e.currentTarget.style.background = '#FDFCF9' }}
-                onMouseOut={e => { if (!selectedIds.has(row.id)) e.currentTarget.style.background = 'white' }}>
-                <td style={{ ...cellStyle, textAlign: 'center' }}>
-                  <input type="checkbox" checked={selectedIds.has(row.id)} onChange={() => toggleRowSelected(row.id)} />
+                onMouseOut={e => { if (!selectedIds.has(row.id)) e.currentTarget.style.background = 'white' }}
+                onDragOver={e => { if (draggedRowId) e.preventDefault() }}
+                onDrop={e => { e.preventDefault(); reorderRow(draggedRowId, row.id); setDraggedRowId(null) }}
+              >
+                <td style={{ ...cellStyle, textAlign: 'center', userSelect: 'none' }}
+                  onMouseDown={() => startDragSelect(i, row.id)}
+                  onMouseEnter={() => extendDragSelect(i)}
+                >
+                  <span
+                    draggable
+                    onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDraggedRowId(row.id) }}
+                    onDragEnd={() => setDraggedRowId(null)}
+                    title="Drag to reorder"
+                    style={dragHandle}
+                  >⠿</span>
+                  <input type="checkbox" checked={selectedIds.has(row.id)} onChange={() => toggleRowSelected(row.id)} onMouseDown={e => e.stopPropagation()} />
                 </td>
                 <td style={{ ...cellStyle, textAlign: 'center', color: '#A89880' }}>{i + 1}</td>
                 {columns.map(c => (
@@ -642,6 +730,7 @@ const ghostBtn = { background: 'white', color: '#2C2416', border: '1px solid #E0
 const deleteBtn = { background: 'none', border: 'none', color: '#D4B8A8', fontSize: 13, cursor: 'pointer', padding: '2px 6px', borderRadius: 4, lineHeight: 1 }
 const expandBtn = { background: 'none', border: 'none', color: '#B89A6A', fontSize: 13, cursor: 'pointer', padding: '2px 6px', borderRadius: 4, lineHeight: 1 }
 const removeColBtn = { background: 'none', border: 'none', color: '#D4B8A8', fontSize: 11, cursor: 'pointer', padding: 0, lineHeight: 1 }
+const dragHandle = { cursor: 'grab', color: '#D4B8A8', fontSize: 12, marginRight: 4, userSelect: 'none' }
 const saveBtn = { background: '#7A8C6E', color: 'white', border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer' }
 const cancelBtn = { background: 'none', border: '1px solid #E0D4C0', color: '#A89880', borderRadius: 6, padding: '7px 10px', fontSize: 12, cursor: 'pointer' }
 const bulkDeleteBtn = { background: '#C4614A', color: 'white', border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer' }
