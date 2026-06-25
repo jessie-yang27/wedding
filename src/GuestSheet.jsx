@@ -746,7 +746,14 @@ export default function GuestSheet({ sheet, setSheet }) {
                     key={c.key}
                     style={cellStyle}
                     onMouseDownCapture={e => { if (e.shiftKey || e.metaKey || e.ctrlKey) e.preventDefault() }}
-                    onClick={e => { if (e.shiftKey || e.metaKey || e.ctrlKey) handleRowSelectClick(e, i, row.id) }}
+                    onClick={e => {
+                      if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                        handleRowSelectClick(e, i, row.id)
+                      } else {
+                        dragAnchorRef.current = i
+                        lastSelectEdgeRef.current = i
+                      }
+                    }}
                   >
                     <Cell
                       value={row[c.key]}
