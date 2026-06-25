@@ -1,19 +1,31 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { nextId } from './data'
+import { nextId, COLOR_PALETTE, SUGGESTED_FIELDS } from './data'
 
 function emptyRow(columns) {
-  const row = { id: nextId() }
+  const row = { id: nextId(), notes: '' }
   columns.forEach(c => { row[c.key] = '' })
   return row
 }
 
-function Cell({ value, column, onChange, onKeyDown, inputRef }) {
+function selectedOption(column, value) {
+  return (column.options || []).find(o => o.value === value)
+}
+
+function Cell({ value, column, onChange, onKeyDown, onPaste, inputRef }) {
   if (column.type === 'select') {
+    const opt = selectedOption(column, value)
     return (
-      <select ref={inputRef} value={value ?? ''} onChange={e => onChange(e.target.value)} onKeyDown={onKeyDown} style={selectStyle}>
+      <select
+        ref={inputRef}
+        value={value ?? ''}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        onPaste={onPaste}
+        style={{ ...selectStyle, background: opt?.color || 'transparent' }}
+      >
         <option value="">—</option>
-        {(column.options || []).map(o => <option key={o} value={o}>{o}</option>)}
+        {(column.options || []).map(o => <option key={o.value} value={o.value}>{o.value}</option>)}
       </select>
     )
   }
@@ -24,19 +36,20 @@ function Cell({ value, column, onChange, onKeyDown, inputRef }) {
       value={value ?? ''}
       onChange={e => onChange(e.target.value)}
       onKeyDown={onKeyDown}
+      onPaste={onPaste}
       placeholder="—"
       style={inputStyle}
     />
   )
 }
 
-function Popover({ rect, children }) {
+function Popover({ rect, children, width }) {
   const ref = useRef(null)
   if (!rect) return null
   const style = {
     position: 'fixed', top: rect.bottom + 6, left: rect.left, zIndex: 1000,
     background: 'white', border: '1px solid #E8DCC8', borderRadius: 8, padding: 12,
-    boxShadow: '0 8px 24px rgba(0,0,0,0.18)', minWidth: 220,
+    boxShadow: '0 8px 24px rgba(0,0,0,0.18)', minWidth: width || 220, maxWidth: 320,
   }
   return createPortal(
     <div ref={ref} style={style} data-popover>{children}</div>,
@@ -44,21 +57,42 @@ function Popover({ rect, children }) {
   )
 }
 
-function FieldEditor({ initial, onSave, onCancel, title }) {
+function FieldEditor({ initial, onSave, onCancel, title, showSuggestions }) {
   const [label, setLabel] = useState(initial?.label || '')
   const [type, setType] = useState(initial?.type || 'text')
-  const [optionsText, setOptionsText] = useState((initial?.options || []).join(', '))
+  const [options, setOptions] = useState(initial?.options?.length ? initial.options : [])
+
+  const addOption = () => setOptions(prev => [...prev, { value: '', color: COLOR_PALETTE[prev.length % COLOR_PALETTE.length] }])
+  const updateOption = (i, patch) => setOptions(prev => prev.map((o, idx) => idx === i ? { ...o, ...patch } : o))
+  const removeOption = (i) => setOptions(prev => prev.filter((_, idx) => idx !== i))
 
   const save = () => {
     const trimmed = label.trim()
     if (!trimmed) { onCancel(); return }
-    const options = optionsText.split(',').map(o => o.trim()).filter(Boolean)
-    onSave({ label: trimmed, type, options: type === 'select' ? options : [] })
+    const cleanOptions = options.map(o => ({ value: o.value.trim(), color: o.color })).filter(o => o.value)
+    onSave({ label: trimmed, type, options: type === 'select' ? cleanOptions : [] })
+  }
+
+  const applySuggestion = (s) => {
+    onSave({ label: s.label, type: s.type, options: s.options })
   }
 
   return (
     <>
       <div style={{ fontSize: 11, color: '#A89880', fontWeight: 500, marginBottom: 10 }}>{title}</div>
+
+      {showSuggestions && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 10, color: '#A89880', marginBottom: 6 }}>SUGGESTED</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {SUGGESTED_FIELDS.map(s => (
+              <button key={s.label} onClick={() => applySuggestion(s)} style={suggestionChip}>{s.label}</button>
+            ))}
+          </div>
+          <div style={{ borderTop: '1px solid #F0EDE8', margin: '10px 0' }} />
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <input
           autoFocus
@@ -74,12 +108,26 @@ function FieldEditor({ initial, onSave, onCancel, title }) {
           <option value="select">Dropdown list</option>
         </select>
         {type === 'select' && (
-          <input
-            value={optionsText}
-            onChange={e => setOptionsText(e.target.value)}
-            placeholder="Options, comma separated"
-            style={{ ...inputStyle, width: '100%', border: '1px solid #E0D4C0', padding: '7px 8px' }}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {options.map((o, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="color"
+                  value={o.color}
+                  onChange={e => updateOption(i, { color: e.target.value })}
+                  style={{ width: 26, height: 26, border: 'none', padding: 0, cursor: 'pointer' }}
+                />
+                <input
+                  value={o.value}
+                  onChange={e => updateOption(i, { value: e.target.value })}
+                  placeholder="Option name"
+                  style={{ ...inputStyle, flex: 1, border: '1px solid #E0D4C0', padding: '6px 8px' }}
+                />
+                <button onClick={() => removeOption(i)} style={removeColBtn}>✕</button>
+              </div>
+            ))}
+            <button onClick={addOption} style={cancelBtn}>+ Add option</button>
+          </div>
         )}
         <div style={{ display: 'flex', gap: 6 }}>
           <button onClick={save} style={saveBtn}>Save</button>
@@ -122,6 +170,52 @@ function FilterPanel({ column, values, active, onApply, onClose }) {
   )
 }
 
+function RowDetailPanel({ row, columns, onChange, onClose }) {
+  const titleParts = [row.firstName, row.lastName].filter(Boolean)
+  const title = titleParts.join(' ') || 'Guest'
+
+  return createPortal(
+    <div style={detailOverlay} onMouseDown={onClose}>
+      <div style={detailPanel} onMouseDown={e => e.stopPropagation()} data-popover>
+        <button onClick={onClose} style={detailCloseBtn} title="Close">✕</button>
+        <div className="serif" style={{ fontSize: 26, marginBottom: 4 }}>{title}</div>
+        <div style={{ fontSize: 12, color: '#A89880', marginBottom: 24 }}>Guest details</div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {columns.map(c => (
+            <div key={c.key}>
+              <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.08em', color: '#B89A6A', fontWeight: 500, marginBottom: 6 }}>
+                {c.label.toUpperCase()}
+              </label>
+              <Cell
+                value={row[c.key]}
+                column={c}
+                onChange={val => onChange(c.key, val)}
+                onKeyDown={() => {}}
+                onPaste={() => {}}
+                inputRef={() => {}}
+              />
+            </div>
+          ))}
+
+          <div>
+            <label style={{ display: 'block', fontSize: 11, letterSpacing: '0.08em', color: '#B89A6A', fontWeight: 500, marginBottom: 6 }}>
+              NOTES
+            </label>
+            <textarea
+              value={row.notes || ''}
+              onChange={e => onChange('notes', e.target.value)}
+              placeholder="Write a note about this guest…"
+              style={notesStyle}
+            />
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 export default function GuestSheet({ sheet, setSheet }) {
   const { columns, rows } = sheet
   // popover = { type: 'filter' | 'edit' | 'add', key, rect }
@@ -129,6 +223,9 @@ export default function GuestSheet({ sheet, setSheet }) {
   const [sort, setSort] = useState(null) // { key, dir: 'asc' | 'desc' }
   const [filters, setFilters] = useState({}) // { [key]: Set(values) }
   const [undoAction, setUndoAction] = useState(null) // { message, undo }
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [detailRowId, setDetailRowId] = useState(null)
+  const [bulkField, setBulkField] = useState({ key: '', value: '' })
   const cellRefs = useRef({})
   const undoTimerRef = useRef(null)
 
@@ -182,6 +279,39 @@ export default function GuestSheet({ sheet, setSheet }) {
         return { ...s, rows: next }
       })
     })
+  }
+
+  const removeSelectedRows = () => {
+    const ids = new Set(selectedIds)
+    const removedEntries = rows.map((r, i) => ({ r, i })).filter(({ r }) => ids.has(r.id))
+    setSheet(s => ({ ...s, rows: s.rows.filter(r => !ids.has(r.id)) }))
+    setSelectedIds(new Set())
+    flashUndo(`${removedEntries.length} guest${removedEntries.length === 1 ? '' : 's'} removed.`, () => {
+      setSheet(s => {
+        const next = [...s.rows]
+        removedEntries.forEach(({ r, i }) => next.splice(Math.min(i, next.length), 0, r))
+        return { ...s, rows: next }
+      })
+    })
+  }
+
+  const applyBulkField = () => {
+    if (!bulkField.key) return
+    const ids = new Set(selectedIds)
+    setSheet(s => ({ ...s, rows: s.rows.map(r => ids.has(r.id) ? { ...r, [bulkField.key]: bulkField.value } : r) }))
+    setBulkField({ key: '', value: '' })
+  }
+
+  const toggleRowSelected = (rowId) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(rowId)) next.delete(rowId); else next.add(rowId)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => prev.size === visibleRows.length ? new Set() : new Set(visibleRows.map(({ r }) => r.id)))
   }
 
   const addColumn = ({ label, type, options }) => {
@@ -296,10 +426,44 @@ export default function GuestSheet({ sheet, setSheet }) {
     }
   }
 
+  const handleCellPaste = (e, row, colKey) => {
+    const text = e.clipboardData.getData('text')
+    if (!text.includes('\t') && !text.includes('\n')) return
+    e.preventDefault()
+    const grid = text.replace(/\r/g, '').split('\n').filter((line, i, arr) => !(i === arr.length - 1 && line === '')).map(line => line.split('\t'))
+    const startRi = visibleRows.findIndex(({ r }) => r.id === row.id)
+    const startCi = colOrder.indexOf(colKey)
+
+    setSheet(s => {
+      let nextRows = [...s.rows]
+      const visibleSnapshot = visibleRows.map(({ r }) => r.id)
+      grid.forEach((line, gi) => {
+        const targetIndex = startRi + gi
+        let targetId
+        if (targetIndex < visibleSnapshot.length) {
+          targetId = visibleSnapshot[targetIndex]
+        } else {
+          const newRow = emptyRow(s.columns)
+          nextRows = [...nextRows, newRow]
+          targetId = newRow.id
+        }
+        const updates = {}
+        line.forEach((val, ci) => {
+          const col = s.columns[startCi + ci]
+          if (col) updates[col.key] = val
+        })
+        nextRows = nextRows.map(r => r.id === targetId ? { ...r, ...updates } : r)
+      })
+      return { ...s, rows: nextRows }
+    })
+  }
+
   const startFromBlank = () => {
     const row = addRow()
     focusCell(row.id, columns[0]?.key)
   }
+
+  const detailRow = detailRowId ? rows.find(r => r.id === detailRowId) : null
 
   return (
     <div style={{ background: 'white', borderRadius: 14, border: '1px solid #E8DCC8', overflow: 'hidden' }}>
@@ -318,6 +482,9 @@ export default function GuestSheet({ sheet, setSheet }) {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
+              <th style={{ ...thStyle, width: 36, textAlign: 'center' }}>
+                <input type="checkbox" checked={selectedIds.size > 0 && selectedIds.size === visibleRows.length} onChange={toggleSelectAll} />
+              </th>
               <th style={{ ...thStyle, width: 44, textAlign: 'center' }}>#</th>
               {columns.map(c => (
                 <th key={c.key} style={thStyle}>
@@ -333,13 +500,17 @@ export default function GuestSheet({ sheet, setSheet }) {
                 </th>
               ))}
               <th style={thStyle}></th>
+              <th style={thStyle}></th>
             </tr>
           </thead>
           <tbody>
             {visibleRows.map(({ r: row }, i) => (
-              <tr key={row.id} style={{ borderBottom: '1px solid #F9F6F0' }}
-                onMouseOver={e => e.currentTarget.style.background = '#FDFCF9'}
-                onMouseOut={e => e.currentTarget.style.background = 'white'}>
+              <tr key={row.id} style={{ borderBottom: '1px solid #F9F6F0', background: selectedIds.has(row.id) ? '#FBF8F0' : 'white' }}
+                onMouseOver={e => { if (!selectedIds.has(row.id)) e.currentTarget.style.background = '#FDFCF9' }}
+                onMouseOut={e => { if (!selectedIds.has(row.id)) e.currentTarget.style.background = 'white' }}>
+                <td style={{ ...cellStyle, textAlign: 'center' }}>
+                  <input type="checkbox" checked={selectedIds.has(row.id)} onChange={() => toggleRowSelected(row.id)} />
+                </td>
                 <td style={{ ...cellStyle, textAlign: 'center', color: '#A89880' }}>{i + 1}</td>
                 {columns.map(c => (
                   <td key={c.key} style={cellStyle}>
@@ -348,10 +519,14 @@ export default function GuestSheet({ sheet, setSheet }) {
                       column={c}
                       onChange={val => updateCell(row.id, c.key, val)}
                       onKeyDown={e => handleCellKeyDown(e, row, c.key)}
+                      onPaste={e => handleCellPaste(e, row, c.key)}
                       inputRef={el => setCellRef(row.id, c.key, el)}
                     />
                   </td>
                 ))}
+                <td style={{ ...cellStyle, textAlign: 'right' }}>
+                  <button onClick={() => setDetailRowId(row.id)} title="Open guest details" style={expandBtn}>⤢</button>
+                </td>
                 <td style={{ ...cellStyle, textAlign: 'right' }}>
                   <button onClick={() => removeRow(row.id)} title="Delete" style={deleteBtn}>✕</button>
                 </td>
@@ -360,7 +535,7 @@ export default function GuestSheet({ sheet, setSheet }) {
 
             {rows.length === 0 && (
               <tr>
-                <td colSpan={columns.length + 2} onClick={startFromBlank} style={{ padding: 48, textAlign: 'center', color: '#A89880', fontSize: 13, cursor: 'text' }}>
+                <td colSpan={columns.length + 4} onClick={startFromBlank} style={{ padding: 48, textAlign: 'center', color: '#A89880', fontSize: 13, cursor: 'text' }}>
                   Click anywhere here to start typing your guest list…
                 </td>
               </tr>
@@ -388,7 +563,7 @@ export default function GuestSheet({ sheet, setSheet }) {
       )}
 
       {popover?.type === 'edit' && (
-        <Popover rect={popover.rect}>
+        <Popover rect={popover.rect} width={260}>
           <FieldEditor
             title="EDIT FIELD"
             initial={columns.find(c => c.key === popover.key)}
@@ -399,13 +574,47 @@ export default function GuestSheet({ sheet, setSheet }) {
       )}
 
       {popover?.type === 'add' && (
-        <Popover rect={popover.rect}>
+        <Popover rect={popover.rect} width={280}>
           <FieldEditor
             title="NEW FIELD"
+            showSuggestions
             onSave={addColumn}
             onCancel={() => setPopover(null)}
           />
         </Popover>
+      )}
+
+      {detailRow && (
+        <RowDetailPanel
+          row={detailRow}
+          columns={columns}
+          onChange={(key, val) => updateCell(detailRow.id, key, val)}
+          onClose={() => setDetailRowId(null)}
+        />
+      )}
+
+      {selectedIds.size > 0 && createPortal(
+        <div style={bulkBar} data-popover>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>{selectedIds.size} selected</span>
+          <select value={bulkField.key} onChange={e => setBulkField({ key: e.target.value, value: '' })} style={{ ...selectStyle, border: '1px solid #E0D4C0', background: 'white' }}>
+            <option value="">Set field…</option>
+            {columns.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+          </select>
+          {bulkField.key && (
+            <Cell
+              value={bulkField.value}
+              column={columns.find(c => c.key === bulkField.key)}
+              onChange={val => setBulkField(f => ({ ...f, value: val }))}
+              onKeyDown={() => {}}
+              onPaste={() => {}}
+              inputRef={() => {}}
+            />
+          )}
+          {bulkField.key && <button onClick={applyBulkField} style={saveBtn}>Apply to all</button>}
+          <button onClick={removeSelectedRows} style={bulkDeleteBtn}>Delete</button>
+          <button onClick={() => setSelectedIds(new Set())} style={cancelBtn}>Clear selection</button>
+        </div>,
+        document.body
       )}
 
       {undoAction && createPortal(
@@ -431,9 +640,12 @@ const selectStyle = { ...inputStyle, cursor: 'pointer' }
 const addBtn = { background: '#2C2416', color: '#F9F6F0', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer', letterSpacing: '0.04em', whiteSpace: 'nowrap' }
 const ghostBtn = { background: 'white', color: '#2C2416', border: '1px solid #E0D4C0', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer', letterSpacing: '0.04em', whiteSpace: 'nowrap' }
 const deleteBtn = { background: 'none', border: 'none', color: '#D4B8A8', fontSize: 13, cursor: 'pointer', padding: '2px 6px', borderRadius: 4, lineHeight: 1 }
+const expandBtn = { background: 'none', border: 'none', color: '#B89A6A', fontSize: 13, cursor: 'pointer', padding: '2px 6px', borderRadius: 4, lineHeight: 1 }
 const removeColBtn = { background: 'none', border: 'none', color: '#D4B8A8', fontSize: 11, cursor: 'pointer', padding: 0, lineHeight: 1 }
 const saveBtn = { background: '#7A8C6E', color: 'white', border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer' }
 const cancelBtn = { background: 'none', border: '1px solid #E0D4C0', color: '#A89880', borderRadius: 6, padding: '7px 10px', fontSize: 12, cursor: 'pointer' }
+const bulkDeleteBtn = { background: '#C4614A', color: 'white', border: 'none', borderRadius: 6, padding: '7px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer' }
+const suggestionChip = { background: '#FDFCF9', border: '1px solid #E0D4C0', color: '#2C2416', borderRadius: 14, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }
 const undoToast = {
   position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 1100,
   background: '#2C2416', color: '#F9F6F0', borderRadius: 10, padding: '12px 18px',
@@ -442,4 +654,25 @@ const undoToast = {
 const undoBtn = {
   background: 'none', border: '1px solid rgba(249,246,240,0.4)', color: '#F9F6F0',
   borderRadius: 6, padding: '4px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+}
+const bulkBar = {
+  position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 1100,
+  background: 'white', border: '1px solid #E8DCC8', borderRadius: 10, padding: '10px 16px',
+  display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+}
+const detailOverlay = {
+  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(44,36,22,0.25)',
+  zIndex: 1200, display: 'flex', justifyContent: 'flex-end',
+}
+const detailPanel = {
+  width: 420, maxWidth: '90vw', height: '100%', background: '#FDFCF9', boxShadow: '-12px 0 32px rgba(0,0,0,0.18)',
+  padding: '32px 28px', overflowY: 'auto', position: 'relative', boxSizing: 'border-box',
+}
+const detailCloseBtn = {
+  position: 'absolute', top: 20, right: 20, background: 'none', border: 'none', fontSize: 16,
+  color: '#A89880', cursor: 'pointer', lineHeight: 1,
+}
+const notesStyle = {
+  width: '100%', minHeight: 100, border: '1px solid #E0D4C0', borderRadius: 8, padding: '10px 12px',
+  fontSize: 13, fontFamily: 'Jost, sans-serif', background: 'white', outline: 'none', boxSizing: 'border-box', resize: 'vertical',
 }

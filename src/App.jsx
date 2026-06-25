@@ -10,7 +10,16 @@ const TABS = [
 
 const pencilBtn = {
   background: 'none', border: 'none', cursor: 'pointer', fontSize: 13,
-  color: '#B89A6A', padding: '2px 4px', lineHeight: 1,
+  color: '#B89A6A', padding: '2px 4px', lineHeight: 1, display: 'inline-flex', alignItems: 'center',
+}
+
+function PencilIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M3 20l1.05-3.78a2 2 0 0 1 .53-.92L16.5 3.37a1.5 1.5 0 0 1 2.12 0l1.01 1.01a1.5 1.5 0 0 1 0 2.12L7.7 18.42a2 2 0 0 1-.92.53L3 20z" />
+    </svg>
+  )
 }
 
 function TitleLine({ value, onSave }) {
@@ -42,7 +51,7 @@ function TitleLine({ value, onSave }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div className="serif" style={{ fontSize: 30, fontWeight: 400 }}>{value || 'Your Wedding'}</div>
-      <button title="Edit" style={pencilBtn} onClick={() => { setDraft(value); setEditing(true) }}>✏️</button>
+      <button title="Edit" style={pencilBtn} onClick={() => { setDraft(value); setEditing(true) }}><PencilIcon /></button>
     </div>
   )
 }
@@ -84,7 +93,7 @@ function DetailsLine({ weddingDate, venue, onSave }) {
         title="Edit"
         style={pencilBtn}
         onClick={() => { setDraftDate(weddingDate); setDraftVenue(venue); setEditing(true) }}
-      >✏️</button>
+      ><PencilIcon /></button>
     </div>
   )
 }

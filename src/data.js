@@ -7,12 +7,41 @@ export const EMPTY_WEDDING_INFO = {
   venue: '',
 }
 
+export const COLOR_PALETTE = ['#F0D4D4', '#F0E4C8', '#DCE8D4', '#D4E4F0', '#E0D4F0', '#F0D4E8', '#D4ECE0', '#E8DCC8']
+
+export const SUGGESTED_FIELDS = [
+  { label: 'Email', type: 'text', options: [] },
+  { label: 'Phone', type: 'text', options: [] },
+  { label: 'Address', type: 'text', options: [] },
+  { label: 'Plus One', type: 'text', options: [] },
+  { label: 'Table Number', type: 'number', options: [] },
+  { label: 'RSVP Status', type: 'select', options: [{ value: 'Yes', color: '#DCE8D4' }, { value: 'No', color: '#F0D4D4' }, { value: 'Pending', color: '#F0E4C8' }] },
+  { label: 'Meal Choice', type: 'select', options: [{ value: 'Chicken', color: '#F0E4C8' }, { value: 'Fish', color: '#D4E4F0' }, { value: 'Vegetarian', color: '#DCE8D4' }] },
+]
+
 export const DEFAULT_COLUMNS = [
   { key: 'firstName', label: 'First Name', type: 'text', options: [] },
   { key: 'lastName', label: 'Last Name', type: 'text', options: [] },
-  { key: 'tier', label: 'Tier', type: 'select', options: ['Tier 0', 'Tier 1', 'Tier 2', 'Tier 3'] },
+  {
+    key: 'tier', label: 'Tier', type: 'select',
+    options: [
+      { value: 'Tier 0', color: '#F0D4D4' },
+      { value: 'Tier 1', color: '#F0E4C8' },
+      { value: 'Tier 2', color: '#D4E4F0' },
+      { value: 'Tier 3', color: '#DCE8D4' },
+    ],
+  },
   { key: 'relationship', label: 'Relationship', type: 'text', options: [] },
 ]
+
+function normalizeOptions(options) {
+  if (!Array.isArray(options)) return []
+  return options.map((o, i) => (typeof o === 'string' ? { value: o, color: COLOR_PALETTE[i % COLOR_PALETTE.length] } : o))
+}
+
+function normalizeColumns(columns) {
+  return columns.map(c => ({ ...c, options: normalizeOptions(c.options) }))
+}
 
 export function loadWeddingInfo() {
   try {
@@ -40,7 +69,7 @@ export function loadGuestSheet() {
     const maxId = parsed.rows?.reduce((m, r) => Math.max(m, r.id || 0), 0) || 0
     idCounter = maxId + 1
     return {
-      columns: parsed.columns?.length ? parsed.columns : DEFAULT_COLUMNS,
+      columns: parsed.columns?.length ? normalizeColumns(parsed.columns) : DEFAULT_COLUMNS,
       rows: parsed.rows || [],
     }
   } catch {
