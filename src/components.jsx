@@ -1,3 +1,47 @@
+import { useState } from 'react'
+
+export function InlineEdit({ value, onChange, type = 'text', options, style = {} }) {
+  const [editing, setEditing] = useState(false)
+
+  if (options) {
+    return (
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{ border: '1px solid #E0D4C0', borderRadius: 6, padding: '4px 8px', fontSize: 13, fontFamily: 'Jost, sans-serif', background: 'white', color: '#2C2416', cursor: 'pointer', ...style }}
+      >
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    )
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onBlur={() => setEditing(false)}
+        onKeyDown={e => e.key === 'Enter' && setEditing(false)}
+        style={{ border: '1px solid #B89A6A', borderRadius: 6, padding: '4px 8px', fontSize: 13, fontFamily: 'Jost, sans-serif', background: 'white', color: '#2C2416', outline: 'none', width: '100%', boxSizing: 'border-box', ...style }}
+      />
+    )
+  }
+
+  return (
+    <span
+      onClick={() => setEditing(true)}
+      title="Click to edit"
+      style={{ cursor: 'text', borderRadius: 4, padding: '2px 4px', display: 'inline-block', minWidth: 40, ...style }}
+      onMouseOver={e => e.currentTarget.style.background = '#F5F0E8'}
+      onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+    >
+      {value || <span style={{ color: '#C0B4A0', fontStyle: 'italic' }}>—</span>}
+    </span>
+  )
+}
+
 export function StatusBadge({ status }) {
   const map = {
     'Complete':         { bg: '#EAF4EE', color: '#2E6E4A' },

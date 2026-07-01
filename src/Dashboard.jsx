@@ -1,55 +1,14 @@
 import { useState } from 'react'
-import { daysUntil, formatDate, WEDDING_DATE } from './data'
-import { StatusBadge, ReadinessGauge } from './components'
+import { daysUntil, formatDate, WEDDING_DATE, SAMPLE_GUESTS } from './data'
+import { StatusBadge, ReadinessGauge, InlineEdit } from './components'
 import AIPlanner from './AIPlanner'
+import SeatingChart from './SeatingChart'
 
 const STATUSES = ['Confirmed', 'Complete', 'Payment Due', 'Pending Approval', 'Incomplete', 'Not Started']
 const CATEGORIES_VENDOR = ['Venue', 'Photography', 'Flowers', 'Entertainment', 'Catering', 'Beauty', 'Logistics', 'Events', 'Ceremony', 'Miscellaneous']
 
 const EMPTY_VENDOR = { vendor: '', category: 'Venue', status: 'Not Started', cost: '', dueDate: '' }
 const EMPTY_BUDGET = { category: '', budget: '', spent: '' }
-
-function InlineEdit({ value, onChange, type = 'text', options, style = {} }) {
-  const [editing, setEditing] = useState(false)
-
-  if (options) {
-    return (
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        style={{ border: '1px solid #E0D4C0', borderRadius: 6, padding: '4px 8px', fontSize: 13, fontFamily: 'Jost, sans-serif', background: 'white', color: '#2C2416', cursor: 'pointer', ...style }}
-      >
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-    )
-  }
-
-  if (editing) {
-    return (
-      <input
-        autoFocus
-        type={type}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onBlur={() => setEditing(false)}
-        onKeyDown={e => e.key === 'Enter' && setEditing(false)}
-        style={{ border: '1px solid #B89A6A', borderRadius: 6, padding: '4px 8px', fontSize: 13, fontFamily: 'Jost, sans-serif', background: 'white', color: '#2C2416', outline: 'none', width: '100%', boxSizing: 'border-box', ...style }}
-      />
-    )
-  }
-
-  return (
-    <span
-      onClick={() => setEditing(true)}
-      title="Click to edit"
-      style={{ cursor: 'text', borderRadius: 4, padding: '2px 4px', display: 'inline-block', minWidth: 40, ...style }}
-      onMouseOver={e => e.currentTarget.style.background = '#F5F0E8'}
-      onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-    >
-      {value || <span style={{ color: '#C0B4A0', fontStyle: 'italic' }}>—</span>}
-    </span>
-  )
-}
 
 export default function Dashboard({ vendors: initialVendors, budget: initialBudget, tasks, clientName, clientDetails, googleConnected, onReset }) {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -62,6 +21,7 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
   const [taskList, setTaskList] = useState(tasks)
   const [addingTask, setAddingTask] = useState(false)
   const [newTask, setNewTask] = useState({ date: '', task: '', priority: 'High' })
+  const [guests, setGuests] = useState(SAMPLE_GUESTS)
 
   const updateTask = (i, field, val) => setTaskList(ts => ts.map((t, idx) => idx === i ? { ...t, [field]: val } : t))
   const deleteTask = (i) => setTaskList(ts => ts.filter((_, idx) => idx !== i))
@@ -104,7 +64,7 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
     setAddingBudget(false)
   }
 
-  const TABS = ['dashboard', 'vendors', 'budget', 'ai-planner']
+  const TABS = ['dashboard', 'vendors', 'budget', 'seating', 'ai-planner']
 
   const cellStyle = { padding: '12px 16px', fontSize: 13 }
   const thStyle = { padding: '11px 16px', textAlign: 'left', fontSize: 11, color: '#A89880', fontWeight: 500, letterSpacing: '0.1em', borderBottom: '1px solid #F0EDE8', background: '#FDFCF9' }
@@ -418,6 +378,11 @@ export default function Dashboard({ vendors: initialVendors, budget: initialBudg
               </table>
             </div>
           </div>
+        )}
+
+        {/* SEATING CHART */}
+        {activeTab === 'seating' && (
+          <SeatingChart guests={guests} setGuests={setGuests} />
         )}
 
         {/* AI PLANNER */}

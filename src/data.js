@@ -22,6 +22,25 @@ export const SAMPLE_BUDGET = [
   { category: 'Miscellaneous', budget: 5000, spent: 2100 },
 ]
 
+export const MEAL_OPTIONS = ['Chicken', 'Fish', 'Vegetarian', 'Vegan', 'Kids Meal']
+export const RSVP_STATUSES = ['Confirmed', 'Pending', 'Declined']
+
+export const SAMPLE_GUESTS = [
+  { name: 'John Smith', table: 1, meal: 'Chicken', rsvp: 'Confirmed' },
+  { name: 'Emily Smith', table: 1, meal: 'Chicken', rsvp: 'Confirmed' },
+  { name: 'Michael Chen', table: 1, meal: 'Vegetarian', rsvp: 'Confirmed' },
+  { name: 'Sarah Chen', table: 1, meal: 'Vegetarian', rsvp: 'Confirmed' },
+  { name: 'David Lee', table: 2, meal: 'Fish', rsvp: 'Confirmed' },
+  { name: 'Grace Lee', table: 2, meal: 'Fish', rsvp: 'Confirmed' },
+  { name: 'Robert Johnson', table: 2, meal: 'Chicken', rsvp: 'Pending' },
+  { name: 'Linda Johnson', table: 2, meal: 'Chicken', rsvp: 'Pending' },
+  { name: 'James Patel', table: 3, meal: 'Vegetarian', rsvp: 'Confirmed' },
+  { name: 'Priya Patel', table: 3, meal: 'Vegan', rsvp: 'Confirmed' },
+  { name: 'William Garcia', table: '', meal: 'Chicken', rsvp: 'Pending' },
+  { name: 'Sophia Garcia', table: '', meal: 'Chicken', rsvp: 'Pending' },
+  { name: 'Olivia Brown', table: '', meal: 'Kids Meal', rsvp: 'Declined' },
+]
+
 export const SAMPLE_TASKS = [
   { date: '2026-06-08', task: 'Finalize Florist Arrangements', priority: 'High' },
   { date: '2026-06-08', task: 'Rehearsal Dinner RSVPs', priority: 'High' },
