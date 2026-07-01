@@ -127,3 +127,24 @@ export function loadMessages() {
 export function saveMessages(state) {
   localStorage.setItem(MESSAGES_KEY, JSON.stringify(state))
 }
+
+const SEATING_KEY = 'seating_chart'
+
+export const EMPTY_SEATING = {
+  assignments: {}, // guestRowId -> table number (string)
+  tableCount: 10,
+  capacity: 8,
+}
+
+export function loadSeating() {
+  try {
+    const raw = localStorage.getItem(SEATING_KEY)
+    return raw ? { ...EMPTY_SEATING, ...JSON.parse(raw) } : { ...EMPTY_SEATING }
+  } catch {
+    return { ...EMPTY_SEATING }
+  }
+}
+
+export function saveSeating(state) {
+  localStorage.setItem(SEATING_KEY, JSON.stringify(state))
+}

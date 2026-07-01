@@ -2,10 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import WeddingInfo from './WeddingInfo'
 import GuestSheet from './GuestSheet'
 import Messages from './Messages'
-import { loadWeddingInfo, saveWeddingInfo, loadGuestSheet, saveGuestSheet, loadMessages, saveMessages } from './data'
+import Seating from './Seating'
+import { loadWeddingInfo, saveWeddingInfo, loadGuestSheet, saveGuestSheet, loadMessages, saveMessages, loadSeating, saveSeating } from './data'
 
 const TABS = [
   { key: 'guests', label: 'Guest List' },
+  { key: 'seating', label: 'Seating Chart' },
   { key: 'messages', label: 'Messages' },
   { key: 'info', label: 'Wedding Details' },
 ]
@@ -105,10 +107,12 @@ export default function App() {
   const [info, setInfo] = useState(loadWeddingInfo)
   const [sheet, setSheet] = useState(loadGuestSheet)
   const [messages, setMessages] = useState(loadMessages)
+  const [seating, setSeating] = useState(loadSeating)
 
   useEffect(() => { saveWeddingInfo(info) }, [info])
   useEffect(() => { saveGuestSheet(sheet) }, [sheet])
   useEffect(() => { saveMessages(messages) }, [messages])
+  useEffect(() => { saveSeating(seating) }, [seating])
 
   return (
     <div style={{ maxWidth: 1180, margin: '0 auto', padding: '32px 24px' }}>
@@ -139,6 +143,7 @@ export default function App() {
 
       {tab === 'info' && <WeddingInfo info={info} setInfo={setInfo} />}
       {tab === 'guests' && <GuestSheet sheet={sheet} setSheet={setSheet} sentMessages={messages.sent} />}
+      {tab === 'seating' && <Seating sheet={sheet} seating={seating} setSeating={setSeating} />}
       {tab === 'messages' && <Messages info={info} sheet={sheet} messages={messages} setMessages={setMessages} />}
     </div>
   )
