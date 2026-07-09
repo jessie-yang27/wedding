@@ -1,5 +1,5 @@
 const FIELDS = [
-  { key: 'coupleName', label: 'Couple Name', placeholder: 'e.g. Jessie Yang & Patrick Zhu' },
+  { key: 'coupleName', label: 'Couple Name', placeholder: 'e.g. Alex Chen & Jordan Lee' },
   { key: 'weddingDate', label: 'Wedding Date', placeholder: 'e.g. June 20, 2026', type: 'date' },
   { key: 'venue', label: 'Venue', placeholder: 'e.g. Grand Island Mansion' },
 ]
